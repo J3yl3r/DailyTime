@@ -1,0 +1,70 @@
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: dailytime-db
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:-DailyTime_Str0ng!}"
+    ports:
+      - "1433:1433"
+    volumes:
+      - dailytime_sqldata:/var/opt/mssql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q \"SELECT 1\" || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
+
+  api:
+    build:
+      context: ./dailyTimeApi
+    container_name: dailytime-api
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      DisableHttpsRedirection: "true"
+      Database__EnsureCreated: "true"
+      Database__SeedMinimal: "true"
+      Cors__Origins: "http://localhost:4010"
+      ConnectionStrings__DefaultConnection: "Server=db,1433;Database=DailyTime;User Id=sa;Password=${MSSQL_SA_PASSWORD:-DailyTime_Str0ng!};TrustServerCertificate=True;Encrypt=False;"
+    ports:
+      - "5100:8080"
+
+  voice:
+    build:
+      context: ./daily-time-voice
+    container_name: dailytime-voice
+    depends_on:
+      - api
+    environment:
+      DAILY_TIME_API_URL: http://api:8080
+      VOICE_API_HOST: 0.0.0.0
+      VOICE_API_PORT: 5400
+      FRONTEND_ORIGINS: http://localhost:4010
+      ENABLE_WHISPER: "false"
+    ports:
+      - "5400:5400"
+
+  web:
+    build:
+      context: ./daily-time-web
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:5100
+        NEXT_PUBLIC_VOICE_API_URL: http://localhost:5400
+    container_name: dailytime-web
+    depends_on:
+      - api
+      - voice
+    ports:
+      - "4010:4010"
+
+volumes:
+  dailytime_sqldata:

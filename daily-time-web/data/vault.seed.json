@@ -1,0 +1,52 @@
+[
+  {
+    "id": "cred-1",
+    "serviceName": "Gmail laboral",
+    "username": "yo@empresa.com",
+    "password": "DemoPass-2026!",
+    "url": "https://mail.google.com",
+    "notes": "Cuenta del trabajo. 2FA en el móvil.",
+    "tags": ["trabajo", "email"],
+    "updatedAt": "2026-07-10T14:30:00.000Z"
+  },
+  {
+    "id": "cred-2",
+    "serviceName": "Portal bancario",
+    "username": "1234567890",
+    "password": "Banco#Demo99",
+    "url": "https://banco.ejemplo.com",
+    "notes": "Solo lectura. No usar en producción.",
+    "tags": ["finanzas", "personal"],
+    "updatedAt": "2026-07-12T09:00:00.000Z"
+  },
+  {
+    "id": "cred-3",
+    "serviceName": "GitHub",
+    "username": "dailytime-dev",
+    "password": "ghp_demo_token_not_real",
+    "url": "https://github.com/login",
+    "notes": "Token de acceso personal de prueba.",
+    "tags": ["desarrollo", "trabajo"],
+    "updatedAt": "2026-07-15T18:45:00.000Z"
+  },
+  {
+    "id": "cred-4",
+    "serviceName": "Wi‑Fi casa",
+    "username": "HomeNet",
+    "password": "WifiDemo_1234",
+    "url": null,
+    "notes": "Router en el salón.",
+    "tags": ["personal", "hogar"],
+    "updatedAt": "2026-07-01T08:00:00.000Z"
+  },
+  {
+    "id": "cred-5",
+    "serviceName": "Azure Portal",
+    "username": "admin@empresa.onmicrosoft.com",
+    "password": "Azur3-Demo!",
+    "url": "https://portal.azure.com",
+    "notes": "Suscripción de desarrollo.",
+    "tags": ["nube", "trabajo"],
+    "updatedAt": "2026-07-18T11:20:00.000Z"
+  }
+]

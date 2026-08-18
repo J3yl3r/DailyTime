@@ -1,0 +1,24 @@
+@dailyTimeWorker_HostAddress = https://localhost:5510
+
+### Health
+GET {{dailyTimeWorker_HostAddress}}/api/health
+
+### Procesar portales encolados
+POST {{dailyTimeWorker_HostAddress}}/api/jobs/scrape/queued
+
+### Forzar scrape de un portal
+POST {{dailyTimeWorker_HostAddress}}/api/jobs/scrape/1
+
+### Estado notificaciones
+GET {{dailyTimeWorker_HostAddress}}/api/notifications/status
+
+### Enviar correo (requiere SMTP configurado)
+POST {{dailyTimeWorker_HostAddress}}/api/notifications/email
+Content-Type: application/json
+
+{
+  "to": "tu@correo.com",
+  "subject": "Prueba DailyTime",
+  "body": "Hola desde el worker",
+  "isHtml": false
+}

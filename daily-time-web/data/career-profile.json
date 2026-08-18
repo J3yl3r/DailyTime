@@ -1,0 +1,72 @@
+{
+  "fullName": "Cristian Quiroz",
+  "headline": "Desarrollador .NET y React / Next.js",
+  "location": "Colombia",
+  "timezone": "America/Bogota (UTC-5)",
+  "availability": "Inmediata",
+  "preferredModality": "Remoto o híbrido",
+  "email": "cristian.quiroz@email.com",
+  "phone": "+57 300 000 0000",
+  "links": [
+    { "label": "LinkedIn", "url": "https://www.linkedin.com/in/cristian-quiroz" },
+    { "label": "GitHub", "url": "https://github.com/cristian-quiroz" },
+    { "label": "Portafolio", "url": "https://cristianquiroz.dev" }
+  ],
+  "languages": [
+    { "name": "Español", "level": "Nativo" },
+    { "name": "Inglés", "level": "Intermedio (B1–B2)" }
+  ],
+  "salary": {
+    "min": 3500,
+    "max": 5000,
+    "currency": "USD",
+    "period": "mes",
+    "notes": "Referencia para remoto ES/MX. Ajustable según país y beneficios."
+  },
+  "preferredCountries": ["Colombia", "México", "España"],
+  "preferredStacks": [".NET", "C#", "React", "Next.js", "TypeScript", "SQL Server", "Azure"],
+  "summary": "Desarrollador con experiencia en backend .NET y frontend React/Next.js. Me enfoco en APIs claras, UIs mantenibles y entregas con criterio de producto. Busco roles remotos o híbridos donde pueda aportar tanto en arquitectura como en implementación.",
+  "strengths": [
+    "Backend con .NET / C# y SQL Server",
+    "Frontend con React, Next.js y TypeScript",
+    "Integración de APIs y automatización (scraping, workers)",
+    "Comunicación clara con negocio y seguimiento de postulaciones"
+  ],
+  "education": [
+    {
+      "title": "Ingeniería de sistemas",
+      "place": "Universidad",
+      "year": "—"
+    }
+  ],
+  "certifications": [
+    {
+      "title": "Azure Fundamentals (en curso / por agregar)",
+      "issuer": "Microsoft",
+      "year": "—"
+    }
+  ],
+  "coverLetters": [
+    {
+      "id": "net",
+      "name": ".NET / backend",
+      "language": "es",
+      "stack": ".NET",
+      "body": "Hola,\n\nMe presento para la vacante de {cargo} en {empresa}. Soy desarrollador .NET (C#, ASP.NET, SQL Server) y me interesa aportar en el diseño e implementación de APIs y servicios estables.\n\nEn mis proyectos recientes he trabajado backend con .NET, integraciones y automatización. Me adapto rápido a código existente y priorizo entregas claras, con foco en calidad y mantenimiento.\n\nQuedo atento para conversar sobre el rol y cómo puedo aportar al equipo.\n\nSaludos,\nCristian Quiroz"
+    },
+    {
+      "id": "react",
+      "name": "React / Next.js",
+      "language": "es",
+      "stack": "React",
+      "body": "Hola,\n\nEscribo por la vacante de {cargo} en {empresa}. Trabajo frontend con React, Next.js y TypeScript, y también me desenvuelvo en backend cuando el producto lo requiere.\n\nMe interesa construir interfaces claras, reutilizables y alineadas con el negocio. Tengo experiencia llevando flujos de usuario de punta a punta, desde el listado hasta el detalle y la persistencia.\n\nEstoy disponible para una entrevista y para adaptar esta carta al contexto de su equipo.\n\nSaludos,\nCristian Quiroz"
+    },
+    {
+      "id": "fullstack",
+      "name": "Fullstack .NET + React",
+      "language": "es",
+      "stack": "Fullstack",
+      "body": "Hola,\n\nPostulo a {cargo} en {empresa} porque el perfil combina lo que más trabajo: backend .NET y frontend React/Next.js.\n\nPuedo moverme entre API, datos y UI sin perder de vista el objetivo del producto. Me interesa un rol remoto o híbrido donde pueda aportar en implementación y en cómo se organiza el trabajo.\n\nQuedo atento a los siguientes pasos.\n\nSaludos,\nCristian Quiroz"
+    }
+  ]
+}

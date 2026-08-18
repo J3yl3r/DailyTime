@@ -1,0 +1,85 @@
+using dailyTimeApi.Common;
+using dailyTimeApi.Exceptions;
+using dailyTimeApi.Models.Request;
+using dailyTimeApi.Models.Response;
+using dailyTimeApi.Services.Interfaces;
+using Microsoft.AspNetCore.Mvc;
+
+namespace dailyTimeApi.Controllers;
+
+[ApiController]
+[Route("api/categories")]
+public class WorkItemCategoriesController : ControllerBase
+{
+    private readonly IWorkItemCategoryService _service;
+    public WorkItemCategoriesController(IWorkItemCategoryService service) => _service = service;
+
+    [HttpGet]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<WorkItemCategoryResponse>>>> GetAll(
+        [FromQuery] string? itemType, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var items = await _service.GetAllAsync(itemType, cancellationToken);
+            return Ok(ApiResponse<IReadOnlyList<WorkItemCategoryResponse>>.Ok(items));
+        }
+        catch (Exception ex) { return HandleError(ex); }
+    }
+
+    [HttpGet("{id:int}")]
+    public async Task<ActionResult<ApiResponse<WorkItemCategoryResponse>>> GetById(
+        int id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var item = await _service.GetByIdAsync(id, cancellationToken);
+            return Ok(ApiResponse<WorkItemCategoryResponse>.Ok(item));
+        }
+        catch (Exception ex) { return HandleError(ex); }
+    }
+
+    [HttpPost]
+    public async Task<ActionResult<ApiResponse<WorkItemCategoryResponse>>> Create(
+        [FromBody] CreateWorkItemCategoryRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var item = await _service.CreateAsync(request, cancellationToken);
+            return CreatedAtAction(nameof(GetById), new { id = item.Id },
+                ApiResponse<WorkItemCategoryResponse>.Ok(item, "Categoría creada."));
+        }
+        catch (Exception ex) { return HandleError(ex); }
+    }
+
+    [HttpPut("{id:int}")]
+    public async Task<ActionResult<ApiResponse<WorkItemCategoryResponse>>> Update(
+        int id, [FromBody] UpdateWorkItemCategoryRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var item = await _service.UpdateAsync(id, request, cancellationToken);
+            return Ok(ApiResponse<WorkItemCategoryResponse>.Ok(item, "Categoría actualizada."));
+        }
+        catch (Exception ex) { return HandleError(ex); }
+    }
+
+    [HttpDelete("{id:int}")]
+    public async Task<ActionResult<ApiResponse<object>>> Delete(
+        int id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _service.DeleteAsync(id, cancellationToken);
+            return Ok(ApiResponse<object>.Ok(null!, "Categoría eliminada."));
+        }
+        catch (Exception ex) { return HandleError(ex); }
+    }
+
+    private ActionResult HandleError(Exception ex) => ex switch
+    {
+        NotFoundException => NotFound(ApiResponse<object>.Fail(ex.Message)),
+        ValidationException ve => BadRequest(ApiResponse<object>.Fail(ex.Message, ve.Errors)),
+        _ => StatusCode(500, ApiResponse<object>.Fail("Error interno del servidor."))
+    };
+}

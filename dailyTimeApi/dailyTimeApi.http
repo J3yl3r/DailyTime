@@ -1,0 +1,6 @@
+@dailyTimeApi_HostAddress = http://localhost:5100
+
+GET {{dailyTimeApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

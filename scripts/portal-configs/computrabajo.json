@@ -1,0 +1,111 @@
+{
+  "searchUrlTemplate": "https://{host}/trabajo-de-{keyword}?pubdate=1",
+  "searchKeywords": [
+    ".net",
+    "desarrollador",
+    "backend",
+    "fullstack",
+    "react",
+    "next.js",
+    "frontend",
+    "front end",
+    "desarrollador react",
+    "desarrollador frontend"
+  ],
+  "requireContentKeywords": [
+    ".net",
+    "dotnet",
+    "asp.net",
+    "aspnet",
+    "c#",
+    "csharp",
+    ".net core",
+    "net core",
+    "entity framework",
+    "ef core",
+    "react",
+    "next.js",
+    "nextjs",
+    "next js",
+    "react.js",
+    "reactjs"
+  ],
+  "searchCountries": [
+    { "code": "co", "name": "Colombia", "host": "co.computrabajo.com" },
+    { "code": "mx", "name": "México", "host": "mx.computrabajo.com" }
+  ],
+  "searchCountriesPaused": [
+    {
+      "code": "es",
+      "name": "España",
+      "host": "www.computrabajo.es",
+      "note": "computrabajo.es redirige a www.computrabajo.com (selector de países). España ya no está activa en Computrabajo."
+    }
+  ],
+  "remoteOrHybridOnlyCountryCodes": ["mx"],
+  "listSelectors": [
+    "article.box_offer",
+    "div.box_offer",
+    "article[id^='offer']"
+  ],
+  "titleSelectors": [
+    "a.js-o-link",
+    "h2 a",
+    "a.fc_base.t_ellipsis"
+  ],
+  "linkSelectors": [
+    "a.js-o-link",
+    "h2 a",
+    "a[href*='/ofertas-de-trabajo/']"
+  ],
+  "companySelectors": [
+    "a.fc_base[href*='/empresas/']",
+    "p.fs16 a",
+    ".fc_base.mt5"
+  ],
+  "locationSelectors": [
+    "p.fs13.fc_base",
+    ".fs13",
+    "span.mr10"
+  ],
+  "dateSelectors": [
+    "p.fs13.fc_base.mt15",
+    "span.fs13",
+    "p.fs13"
+  ],
+  "modalitySelectors": [
+    "p.fs13.fc_base",
+    ".fs13",
+    "span.tag"
+  ],
+  "contractSelectors": [
+    "p.fs13.fc_base",
+    ".fs13"
+  ],
+  "descriptionSelectors": [
+    "[div-link='oferta'] p.mbB",
+    "[div-link=\"oferta\"] p.mbB",
+    "[div-link='oferta']",
+    ".description_offer .fs16.t_word_wrap",
+    "[description-offer] .fs16.t_word_wrap",
+    ".description_offer",
+    "[description-offer]",
+    "ul.disc.mbB",
+    "div.fs16.t_word_wrap"
+  ],
+  "visitDetailPages": true,
+  "maxDetailPages": 100,
+  "maxAgeHours": 24,
+  "dropIfDateUnknown": true,
+  "defaultLanguage": "es",
+  "defaultCountry": "Colombia",
+  "waitForSelector": "article.box_offer, div.box_offer",
+  "clickBeforeExtract": [
+    "a[title='Fecha']",
+    "li a:has-text('Fecha')",
+    "a:has-text('Fecha')"
+  ],
+  "waitAfterClickMs": 1500,
+  "maxItems": 100,
+  "scrollTimes": 6
+}

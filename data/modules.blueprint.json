@@ -1,0 +1,83 @@
+{
+  "modules": {
+    "career": {
+      "description": "Catálogos reutilizables + experiencias + postulaciones",
+      "catalogs": {
+        "CareerCompany": { "route": "/api/career/companies", "ui": "Empresas" },
+        "CareerPosition": { "route": "/api/career/positions", "ui": "Cargos" },
+        "CareerLocation": { "route": "/api/career/locations", "ui": "Ubicaciones" },
+        "CareerField": { "route": "/api/career/fields", "ui": "Carreras" },
+        "CareerTechnology": { "route": "/api/career/technologies", "ui": "Tecnologías" }
+      },
+      "WorkExperience": {
+        "fields": [
+          "companyId",
+          "positionId",
+          "locationId?",
+          "fieldId?",
+          "startDate",
+          "endDate?",
+          "isCurrent",
+          "summary?",
+          "achievements?",
+          "technologyIds[]"
+        ],
+        "example": {
+          "companyId": 1,
+          "positionId": 1,
+          "locationId": 1,
+          "fieldId": 1,
+          "startDate": "2022-03-01",
+          "endDate": null,
+          "isCurrent": true,
+          "summary": "Desarrollo web y automatización",
+          "achievements": "- Logro 1\n- Logro 2",
+          "technologyIds": [1, 2, 3]
+        }
+      },
+      "JobApplication": {
+        "fields": [
+          "companyId",
+          "positionId",
+          "locationId?",
+          "fieldId?",
+          "appliedAt",
+          "status",
+          "url?",
+          "contact?",
+          "notes?",
+          "workExperienceId?"
+        ],
+        "statusValues": [
+          "applied",
+          "screening",
+          "interview",
+          "offer",
+          "rejected",
+          "withdrawn",
+          "other"
+        ],
+        "example": {
+          "companyId": 3,
+          "positionId": 3,
+          "fieldId": 1,
+          "appliedAt": "2026-07-23",
+          "status": "interview",
+          "workExperienceId": 1
+        }
+      },
+      "sidebar": {
+        "group": "Carrera",
+        "items": [
+          { "label": "Experiencias", "href": "/experiences" },
+          { "label": "Postulaciones", "href": "/applications" },
+          { "label": "Datos reutilizables", "href": "/career/catalogs" }
+        ]
+      }
+    }
+  },
+  "sql": {
+    "migrateCatalogs": "scripts/migrate-career-catalogs.sql",
+    "seedCatalogs": "scripts/seed-career-catalogs.sql"
+  }
+}

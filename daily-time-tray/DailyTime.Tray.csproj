@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>DailyTime.Tray</RootNamespace>
+    <AssemblyName>DailyTime.Tray</AssemblyName>
+    <Product>DailyTime</Product>
+    <Description>Control de DailyTime en la bandeja de Windows</Description>
+  </PropertyGroup>
+</Project>

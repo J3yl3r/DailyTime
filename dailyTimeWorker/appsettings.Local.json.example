@@ -1,0 +1,7 @@
+{
+  "Worker": {
+    "BrowserExecutablePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "BrowserProfileDir": "C:\\Users\\TU_USUARIO\\AppData\\Local\\Google\\Chrome\\User Data",
+    "BrowserProfileCloneDir": "C:\\Users\\TU_USUARIO\\AppData\\Local\\DailyTime\\playwright-profile-clone"
+  }
+}

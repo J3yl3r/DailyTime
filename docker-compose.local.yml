@@ -1,0 +1,56 @@
+# DailyTime — apps en Docker, base de datos en TU SQL Server local (Express).
+# Uso: docker compose -f docker-compose.local.yml up --build -d
+#
+# Requisitos:
+# - SQL Server Express encendido en el PC
+# - Cadena de conexión con usuario/contraseña (ver LOCAL_DB_CONNECTION en .env)
+# - Desde el contenedor, el host es host.docker.internal
+
+services:
+  api:
+    build:
+      context: ./dailyTimeApi
+    container_name: dailytime-api
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      DisableHttpsRedirection: "true"
+      Database__EnsureCreated: "false"
+      Database__SeedMinimal: "false"
+      Cors__Origins: "http://localhost:4010"
+      ConnectionStrings__DefaultConnection: "${LOCAL_DB_CONNECTION:-Server=host.docker.internal\\SQLEXPRESS;Database=DailyTime;User Id=sa;Password=DailyTime_Str0ng!;TrustServerCertificate=True;Encrypt=False;}"
+    ports:
+      - "5100:8080"
+
+  voice:
+    build:
+      context: ./daily-time-voice
+    container_name: dailytime-voice
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      DAILY_TIME_API_URL: http://api:8080
+      VOICE_API_HOST: 0.0.0.0
+      VOICE_API_PORT: 5400
+      FRONTEND_ORIGINS: http://localhost:4010
+      ENABLE_WHISPER: "false"
+    ports:
+      - "5400:5400"
+
+  web:
+    build:
+      context: ./daily-time-web
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:5100
+        NEXT_PUBLIC_VOICE_API_URL: http://localhost:5400
+    container_name: dailytime-web
+    restart: unless-stopped
+    depends_on:
+      - api
+      - voice
+    ports:
+      - "4010:4010"

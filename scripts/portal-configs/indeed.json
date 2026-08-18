@@ -1,0 +1,84 @@
+{
+  "searchUrlTemplate": "https://{countryCode}.indeed.com/jobs?q={query}&fromage=1&sort=date",
+  "searchKeywords": [
+    ".net",
+    "desarrollador",
+    "backend",
+    "fullstack",
+    "react",
+    "next.js",
+    "frontend",
+    "front end",
+    "desarrollador react",
+    "desarrollador frontend"
+  ],
+  "requireContentKeywords": [
+    ".net",
+    "dotnet",
+    "asp.net",
+    "aspnet",
+    "c#",
+    "csharp",
+    ".net core",
+    "net core",
+    "entity framework",
+    "ef core",
+    "react",
+    "next.js",
+    "nextjs",
+    "next js",
+    "react.js",
+    "reactjs"
+  ],
+  "searchCountries": [
+    { "code": "co", "name": "Colombia" },
+    { "code": "mx", "name": "México" },
+    { "code": "es", "name": "España" }
+  ],
+  "searchCountriesPaused": [
+    { "code": "ar", "name": "Argentina" },
+    { "code": "cl", "name": "Chile" },
+    { "code": "pe", "name": "Perú" },
+    { "code": "ec", "name": "Ecuador" },
+    { "code": "uy", "name": "Uruguay" },
+    { "code": "cr", "name": "Costa Rica" },
+    { "code": "pa", "name": "Panamá" }
+  ],
+  "remoteOrHybridOnlyCountryCodes": ["mx", "es"],
+  "listSelectors": ["div.job_seen_beacon", "li.css-1ac2h1w", "div.resultContent"],
+  "titleSelectors": ["a.jcs-JobTitle", "h2.jobTitle a", "h2.jobTitle span"],
+  "linkSelectors": ["a.jcs-JobTitle", "h2.jobTitle a", "a[data-jk]"],
+  "companySelectors": [
+    "[data-testid='company-name']",
+    "span.companyName",
+    "span.css-1h7lukg"
+  ],
+  "locationSelectors": ["[data-testid='text-location']", "div.companyLocation"],
+  "dateSelectors": [
+    "[data-testid='timing-attribute']",
+    "[data-testid='myJobsStateDate']",
+    "span.date",
+    "span[class*='date']"
+  ],
+  "modalitySelectors": ["[data-testid='attribute_snippet_testid']", "div.metadata div"],
+  "contractSelectors": ["[data-testid='attribute_snippet_testid']", "div.metadata div"],
+  "snippetSelectors": ["[data-testid='job-snippet']", ".job-snippet", "div.job-snippet"],
+  "descriptionSelectors": [
+    "#jobDescriptionText",
+    "#job-description",
+    ".jobsearch-JobComponent-description",
+    "[data-testid='jobsearch-JobComponent-description']"
+  ],
+  "visitDetailPages": true,
+  "maxDetailPages": 100,
+  "maxAgeHours": 24,
+  "dropIfDateUnknown": true,
+  "paginate": true,
+  "paginationPageSize": 10,
+  "maxSearchPages": 30,
+  "defaultLanguage": "es",
+  "defaultCountry": "Colombia",
+  "waitForSelector": "div.job_seen_beacon",
+  "maxItems": 100,
+  "scrollTimes": 6
+}

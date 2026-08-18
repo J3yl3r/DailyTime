@@ -1,0 +1,104 @@
+{
+  "searchUrlTemplate": "https://www.linkedin.com/jobs/search/?keywords={query}&location={location}&geoId={geoId}&f_TPR=r43200&sortBy=DD&origin=JOB_SEARCH_PAGE_JOB_FILTER",
+  "searchKeywords": [
+    ".net",
+    "desarrollador",
+    "backend",
+    "fullstack",
+    "react",
+    "next.js",
+    "frontend",
+    "front end",
+    "desarrollador react",
+    "desarrollador frontend"
+  ],
+  "requireContentKeywords": [
+    ".net",
+    "dotnet",
+    "asp.net",
+    "aspnet",
+    "c#",
+    "csharp",
+    ".net core",
+    "net core",
+    "entity framework",
+    "ef core",
+    "react",
+    "next.js",
+    "nextjs",
+    "next js",
+    "react.js",
+    "reactjs"
+  ],
+  "searchCountries": [
+    { "code": "co", "name": "Colombia", "location": "Colombia", "geoId": "100876405" },
+    { "code": "mx", "name": "México", "location": "Mexico", "geoId": "103323778" },
+    { "code": "es", "name": "España", "location": "Spain", "geoId": "105646813" }
+  ],
+  "searchCountriesPaused": [],
+  "remoteOrHybridOnlyCountryCodes": ["mx", "es"],
+  "listSelectors": [
+    "div.base-card",
+    "li.jobs-search-results__list-item",
+    "li.scaffold-layout__list-item",
+    "div.job-card-container"
+  ],
+  "titleSelectors": [
+    "h3.base-search-card__title",
+    "a.job-card-list__title--link",
+    ".job-card-list__title",
+    "a.job-card-container__link"
+  ],
+  "linkSelectors": [
+    "a.base-card__full-link",
+    "a.job-card-list__title--link",
+    "a.job-card-container__link",
+    "a[href*='/jobs/view/']"
+  ],
+  "companySelectors": [
+    "h4.base-search-card__subtitle",
+    ".base-search-card__subtitle a",
+    ".artdeco-entity-lockup__subtitle",
+    ".job-card-container__primary-description"
+  ],
+  "locationSelectors": [
+    ".job-search-card__location",
+    ".artdeco-entity-lockup__caption",
+    ".job-card-container__metadata-item"
+  ],
+  "dateSelectors": [
+    "time",
+    ".job-search-card__listdate",
+    ".job-search-card__listdate--new",
+    ".job-card-container__listed-time"
+  ],
+  "modalitySelectors": [
+    ".job-card-container__metadata-item--workplace-type",
+    "li.job-card-container__metadata-item--workplace-type"
+  ],
+  "contractSelectors": [
+    ".job-card-container__metadata-item--employment-type",
+    "li.job-card-container__metadata-item--employment-type"
+  ],
+  "snippetSelectors": [".job-search-card__snippet", ".base-search-card__snippet"],
+  "descriptionSelectors": [
+    "[data-testid='expandable-text-box']",
+    "h2:has-text('Acerca del empleo')",
+    ".jobs-description__content",
+    ".jobs-box__html-content",
+    "#job-details",
+    "article.jobs-description"
+  ],
+  "visitDetailPages": true,
+  "maxDetailPages": 100,
+  "maxAgeHours": 12,
+  "dropIfDateUnknown": true,
+  "paginate": true,
+  "paginationPageSize": 25,
+  "maxSearchPages": 2,
+  "defaultLanguage": "es",
+  "defaultCountry": "Colombia",
+  "waitForSelector": "div.base-card, li.jobs-search-results__list-item, div.job-card-container",
+  "maxItems": 100,
+  "scrollTimes": 8
+}

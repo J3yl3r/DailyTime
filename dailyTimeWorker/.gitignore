@@ -1,0 +1,36 @@
+# dailyTimeWorker (.NET + Playwright)
+
+## Build
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+[Ll]og/
+[Ll]ogs/
+artifacts/
+*.user
+*.suo
+*.userosscache
+.vs/
+
+## Secrets / local config
+.env
+.env.*
+!.env.example
+appsettings.*.local.json
+appsettings.Local.json
+secrets.json
+
+## Playwright
+.playwright/
+playwright-report/
+test-results/
+**/ms-playwright/
+
+## Perfiles / clones de Chrome usados por el scraper
+**/playwright-profile*/
+**/chrome-profile-clone*/
+
+## Misc
+*.log
+*.tmp
+*.http.user
