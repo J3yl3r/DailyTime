@@ -36,8 +36,12 @@ export default function RootLayout({
     <html
       lang="es"
       className={`${dmSans.variable} ${fraunces.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body className="min-h-dvh font-sans text-[var(--ink)]">
+      <body
+        className="min-h-dvh font-sans text-[var(--ink)]"
+        suppressHydrationWarning
+      >
         <AppProviders>{children}</AppProviders>
       </body>
     </html>
