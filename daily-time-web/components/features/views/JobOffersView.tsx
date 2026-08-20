@@ -1,21 +1,35 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ExternalLink, Trash2 } from "lucide-react";
+import { ExternalLink, Eye, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { JobOffer, JobOfferFilters } from "@/types/api";
 import { useJobOffers } from "@/hooks/queries/use-job-offers";
 import { useJobOfferMeta } from "@/hooks/queries/use-job-offer-meta";
 import { useJobOfferMutations } from "@/hooks/mutations/use-job-offer-mutations";
 import { useJobPortals } from "@/hooks/queries/use-job-portals";
-import { cn } from "@/lib/utils/cn";
 import { useConfirm } from "@/providers/confirm-provider";
+import {
+  DataList,
+  DataListAction,
+  DataListBadge,
+} from "@/components/ui/DataList";
+import { FormModal } from "@/components/shared/form-modal";
+import { DetailField, VacancyBody } from "@/components/features/career/vacancy-detail";
+import { todayApiDate } from "@/lib/utils/date";
 
 const STATUS_LABELS: Record<string, string> = {
   new: "Nueva",
   seen: "Vista",
   discarded: "Descartada",
   applied: "Postulada",
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  new: "#3B82F6",
+  seen: "#64748B",
+  discarded: "#EF4444",
+  applied: "#22C55E",
 };
 
 const LANGUAGE_LABELS: Record<string, string> = {
@@ -37,18 +51,19 @@ export function JobOffersView() {
   const meta = useJobOfferMeta();
   const confirm = useConfirm();
   const [portalId, setPortalId] = useState<number | "all">("all");
-  const [status, setStatus] = useState<string>("all");
+  const [status, setStatus] = useState("new");
   const [search, setSearch] = useState("");
   const [country, setCountry] = useState("");
   const [language, setLanguage] = useState("");
   const [workModality, setWorkModality] = useState("");
   const [contractType, setContractType] = useState("");
   const [techStack, setTechStack] = useState("");
-  const [capturedFrom, setCapturedFrom] = useState("");
-  const [capturedTo, setCapturedTo] = useState("");
+  const [capturedFrom, setCapturedFrom] = useState(todayApiDate);
+  const [capturedTo, setCapturedTo] = useState(todayApiDate);
   const [postedFrom, setPostedFrom] = useState("");
   const [postedTo, setPostedTo] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [viewing, setViewing] = useState<JobOffer | null>(null);
 
   const filters = useMemo<JobOfferFilters>(() => {
     const f: JobOfferFilters = {};
@@ -112,6 +127,22 @@ export function JobOffersView() {
   };
 
   const clearSelection = () => setSelectedIds(new Set());
+
+  const markAsSeenIfNew = (item: JobOffer) => {
+    if (item.status !== "new") return;
+    mutations.updateStatus.mutate({ id: item.id, status: "seen" });
+  };
+
+  const openView = (item: JobOffer) => {
+    markAsSeenIfNew(item);
+    setViewing(item.status === "new" ? { ...item, status: "seen" } : item);
+  };
+
+  const openExternal = (item: JobOffer) => {
+    if (!item.url) return;
+    markAsSeenIfNew(item);
+    window.open(item.url, "_blank", "noopener,noreferrer");
+  };
 
   const setOfferStatus = async (item: JobOffer, next: string) => {
     if (next === "discarded") {
@@ -193,16 +224,17 @@ export function JobOffersView() {
   };
 
   const clearFilters = () => {
+    const today = todayApiDate();
     setPortalId("all");
-    setStatus("all");
+    setStatus("new");
     setSearch("");
     setCountry("");
     setLanguage("");
     setWorkModality("");
     setContractType("");
     setTechStack("");
-    setCapturedFrom("");
-    setCapturedTo("");
+    setCapturedFrom(today);
+    setCapturedTo(today);
     setPostedFrom("");
     setPostedTo("");
     clearSelection();
@@ -444,131 +476,135 @@ export function JobOffersView() {
       )}
 
       {!query.isLoading && !query.error && (
-        !items.length ? (
-          <p className="rounded-xl border border-dashed border-[var(--border)] px-4 py-6 text-sm text-[var(--muted)]">
-            No hay ofertas con estos filtros.
-          </p>
-        ) : (
-          <div className="flex flex-col gap-2">
-            <label className="flex items-center gap-2 px-1 text-sm text-[var(--muted)]">
-              <input
-                type="checkbox"
-                checked={allVisibleSelected}
-                onChange={toggleSelectAll}
-                className="size-4 accent-[var(--accent)]"
-              />
-              Seleccionar todas ({items.length})
-            </label>
-
-            {items.map((item) => {
-              const selected = selectedIds.has(item.id);
-              return (
-                <article
-                  key={item.id}
-                  className={cn(
-                    "rounded-xl border bg-[var(--surface)] px-4 py-3 shadow-[var(--shadow-card)]",
-                    selected
-                      ? "border-[var(--accent)] ring-1 ring-[var(--accent-soft)]"
-                      : "border-[var(--border)]",
-                  )}
-                >
-                  <div className="flex flex-wrap items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={selected}
-                      onChange={() => toggleSelect(item.id)}
-                      className="mt-1 size-4 shrink-0 accent-[var(--accent)]"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium">{item.title}</p>
-                      <p className="text-sm text-[var(--muted)]">
-                        {[item.company, item.location, item.portalName]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </p>
-                      {(item.country ||
-                        item.language ||
-                        item.techStack ||
-                        item.workModality ||
-                        item.contractType) && (
-                        <p className="text-xs text-[var(--muted)]">
-                          {[
-                            item.country,
-                            item.language ? formatLanguage(item.language) : null,
-                            item.techStack,
-                            item.workModality,
-                            item.contractType,
-                          ]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        </p>
-                      )}
-                      {item.descriptionSnippet ? (
-                        <p className="mt-1 line-clamp-2 text-sm text-[var(--muted)]">
-                          {item.descriptionSnippet}
-                        </p>
-                      ) : null}
-                      <p className="mt-1 text-xs text-[var(--muted)]">
-                        {STATUS_LABELS[item.status] ?? item.status}
-                        {" · "}
-                        Capturada {new Date(item.capturedAt).toLocaleString()}
-                        {item.postedAt
-                          ? ` · Publicada ${new Date(item.postedAt).toLocaleDateString()}`
-                          : ""}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {item.url ? (
-                        <a
-                          href={item.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-[var(--accent)] hover:bg-[var(--surface-muted)]"
-                        >
-                          <ExternalLink className="size-3.5" /> Abrir
-                        </a>
-                      ) : null}
-                      {item.status === "new" ? (
-                        <button
-                          type="button"
-                          onClick={() => setOfferStatus(item, "seen")}
-                          className="rounded-md px-2 py-1 text-xs text-[var(--muted)] hover:bg-[var(--surface-muted)]"
-                        >
-                          Marcar vista
-                        </button>
-                      ) : null}
-                      <button
-                        type="button"
-                        onClick={() => setOfferStatus(item, "applied")}
-                        className="rounded-md px-2 py-1 text-xs text-[var(--muted)] hover:bg-[var(--surface-muted)]"
-                      >
-                        Postulada
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setOfferStatus(item, "discarded")}
-                        className="rounded-md px-2 py-1 text-xs text-[var(--muted)] hover:bg-[var(--surface-muted)]"
-                      >
-                        Descartar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => remove(item)}
-                        className={cn(
-                          "inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs",
-                          "text-[var(--muted)] hover:bg-red-50 hover:text-[var(--danger)]",
-                        )}
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        )
+        <DataList
+          items={items}
+          getKey={(item) => item.id}
+          emptyMessage="No hay ofertas con estos filtros."
+          selected={(item) => selectedIds.has(item.id)}
+          onToggleSelect={(item) => toggleSelect(item.id)}
+          selectAriaLabel={(item) => `Seleccionar ${item.title}`}
+          header={
+            items.length > 0 ? (
+              <label className="inline-flex items-center gap-2 text-sm text-[var(--muted)]">
+                <input
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  onChange={toggleSelectAll}
+                />
+                Seleccionar todas ({items.length})
+              </label>
+            ) : null
+          }
+          title={(item) => item.title}
+          badge={(item) => (
+            <DataListBadge color={STATUS_COLORS[item.status] ?? "#64748B"}>
+              {STATUS_LABELS[item.status] ?? item.status}
+            </DataListBadge>
+          )}
+          meta={(item) =>
+            [
+              item.company,
+              item.location,
+              item.portalName,
+              item.country,
+              item.language ? formatLanguage(item.language) : null,
+              item.techStack,
+              item.workModality,
+              item.contractType,
+              `Capturada ${new Date(item.capturedAt).toLocaleDateString()}`,
+            ]
+              .filter(Boolean)
+              .join(" · ")
+          }
+          actions={(item) => (
+            <>
+              <DataListAction onClick={() => openView(item)}>
+                <Eye className="size-3.5" /> Ver
+              </DataListAction>
+              {item.url ? (
+                <DataListAction onClick={() => openExternal(item)}>
+                  <ExternalLink className="size-3.5" /> Abrir
+                </DataListAction>
+              ) : null}
+              {item.status === "new" ? (
+                <DataListAction onClick={() => setOfferStatus(item, "seen")}>
+                  Marcar vista
+                </DataListAction>
+              ) : null}
+              <DataListAction onClick={() => setOfferStatus(item, "applied")}>
+                Postulada
+              </DataListAction>
+              <DataListAction onClick={() => setOfferStatus(item, "discarded")}>
+                Descartar
+              </DataListAction>
+              <DataListAction danger onClick={() => remove(item)}>
+                <Trash2 className="size-3.5" />
+              </DataListAction>
+            </>
+          )}
+        />
       )}
+
+      <FormModal
+        open={viewing != null}
+        onOpenChange={(open) => !open && setViewing(null)}
+        title={viewing?.title ?? "Detalle de la vacante"}
+        description={
+          viewing
+            ? [viewing.company, viewing.location, viewing.portalName]
+                .filter(Boolean)
+                .join(" · ")
+            : undefined
+        }
+        size="lg"
+      >
+        {viewing ? (
+          <div className="flex flex-col gap-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <DetailField label="Estado" value={STATUS_LABELS[viewing.status] ?? viewing.status} />
+              <DetailField label="Portal" value={viewing.portalName} />
+              <DetailField label="Empresa" value={viewing.company} />
+              <DetailField label="Ubicación" value={viewing.location} />
+              <DetailField label="País" value={viewing.country} />
+              <DetailField
+                label="Idioma"
+                value={viewing.language ? formatLanguage(viewing.language) : null}
+              />
+              <DetailField label="Modalidad" value={viewing.workModality} />
+              <DetailField label="Contrato" value={viewing.contractType} />
+              <DetailField label="Stack" value={viewing.techStack} />
+              <DetailField
+                label="Publicada"
+                value={
+                  viewing.postedAt
+                    ? new Date(viewing.postedAt).toLocaleDateString()
+                    : null
+                }
+              />
+              <DetailField
+                label="Capturada"
+                value={new Date(viewing.capturedAt).toLocaleString()}
+              />
+            </div>
+            {viewing.url ? (
+              <button
+                type="button"
+                onClick={() => openExternal(viewing)}
+                className="inline-flex w-fit items-center gap-1 text-sm text-[var(--accent)] hover:underline"
+              >
+                <ExternalLink className="size-3.5" />
+                Abrir vacante original
+              </button>
+            ) : null}
+            <div>
+              <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">
+                Descripción
+              </p>
+              <VacancyBody text={viewing.description || viewing.descriptionSnippet} />
+            </div>
+          </div>
+        ) : null}
+      </FormModal>
     </div>
   );
 }

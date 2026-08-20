@@ -1,4 +1,5 @@
 using dailyTimeWorker.Configuration;
+using dailyTimeWorker.Services.Chrome;
 using dailyTimeWorker.Services.DailyTimeApi;
 using dailyTimeWorker.Services.Notifications;
 using dailyTimeWorker.Services.Scraping;
@@ -49,6 +50,8 @@ builder.Services.AddHttpClient<IDailyTimeApiClient, DailyTimeApiClient>((sp, cli
 });
 
 builder.Services.AddSingleton<IPortalScrapeEngine, PortalScrapeEngine>();
+builder.Services.AddSingleton<IScrapeRunCoordinator, ScrapeRunCoordinator>();
+builder.Services.AddSingleton<IChromeDebugLauncher, ChromeDebugLauncher>();
 builder.Services.AddScoped<IPortalScrapeService, PortalScrapeService>();
 builder.Services.AddSingleton<INotificationService, NotificationService>();
 builder.Services.AddHostedService<PortalScrapeBackgroundService>();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { WorkExperience } from "@/types/api";
@@ -10,6 +10,7 @@ import { useWorkExperienceMutations } from "@/hooks/mutations/use-work-experienc
 import { CreatePanel } from "@/components/ui/CreatePanel";
 import { FormModal } from "@/components/shared/form-modal";
 import { useConfirm } from "@/providers/confirm-provider";
+import { cn } from "@/lib/utils/cn";
 import Link from "next/link";
 
 const inputClass =
@@ -286,10 +287,28 @@ function toDraft(item: WorkExperience): ExperienceDraft {
 export function ExperiencesView() {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<WorkExperience | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const query = useWorkExperiences();
   const mutations = useWorkExperienceMutations();
   const confirm = useConfirm();
   const items = query.data ?? [];
+
+  useEffect(() => {
+    if (!items.length) {
+      setSelectedId(null);
+      return;
+    }
+    setSelectedId((current) =>
+      current != null && items.some((item) => item.id === current)
+        ? current
+        : items[0].id,
+    );
+  }, [items]);
+
+  const selected = useMemo(
+    () => items.find((item) => item.id === selectedId) ?? items[0],
+    [items, selectedId],
+  );
 
   const save = async (draft: ExperienceDraft, id?: number) => {
     if (draft.companyId === "" || draft.positionId === "") return;
@@ -357,7 +376,7 @@ export function ExperiencesView() {
       {query.isLoading && <p className="text-sm text-[var(--muted)]">Cargando…</p>}
       {query.error && <p className="text-sm text-[var(--danger)]">{String(query.error)}</p>}
       {!query.isLoading && !query.error && (
-        !items.length ? (
+        items.length === 0 ? (
           <p className="rounded-xl border border-dashed border-[var(--border)] px-4 py-6 text-sm text-[var(--muted)]">
             Aún no has guardado experiencias. Primero crea datos en{" "}
             <Link href="/career/catalogs" className="text-[var(--accent)] underline">
@@ -366,53 +385,105 @@ export function ExperiencesView() {
             .
           </p>
         ) : (
-          <div className="flex flex-col gap-3">
-            {items.map((item) => (
-              <article
-                key={item.id}
-                className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-4 shadow-[var(--shadow-card)]"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="font-medium text-[var(--ink)]">
-                      {item.positionName} · {item.companyName}
-                    </p>
-                    <p className="text-sm text-[var(--muted)]">
-                      {item.startDate.slice(0, 10)}
-                      {" — "}
-                      {item.isCurrent ? "Actual" : item.endDate?.slice(0, 10) ?? "—"}
-                      {item.locationName ? ` · ${item.locationName}` : ""}
-                      {item.fieldName ? ` · ${item.fieldName}` : ""}
-                    </p>
-                  </div>
+          <section className="grid gap-3 lg:grid-cols-[220px_1fr]">
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 shadow-[var(--shadow-card)]">
+              <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+                Experiencias
+              </p>
+              <div className="flex flex-col gap-1">
+                {items.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setSelectedId(item.id)}
+                    className={cn(
+                      "rounded-lg px-3 py-2 text-left text-sm transition-colors",
+                      item.id === selected?.id
+                        ? "bg-[var(--accent-soft)] font-medium text-[var(--accent-strong)]"
+                        : "text-[var(--ink)] hover:bg-[var(--surface-muted)]",
+                    )}
+                  >
+                    {item.positionName}
+                    <span className="mt-0.5 block text-[11px] font-normal text-[var(--muted)]">
+                      {[item.companyName, item.isCurrent ? "Actual" : item.endDate?.slice(0, 10)]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <article className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-5 py-4 shadow-[var(--shadow-card)]">
+              <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h3 className="font-semibold text-[var(--ink)]">
+                    {selected?.positionName} · {selected?.companyName}
+                  </h3>
+                  <p className="text-xs text-[var(--muted)]">
+                    {[
+                      selected
+                        ? `${selected.startDate.slice(0, 10)} — ${
+                            selected.isCurrent
+                              ? "Actual"
+                              : selected.endDate?.slice(0, 10) ?? "—"
+                          }`
+                        : null,
+                      selected?.locationName,
+                      selected?.fieldName,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                </div>
+                {selected ? (
                   <div className="flex gap-1">
                     <button
                       type="button"
-                      onClick={() => setEditing(item)}
-                      className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-[var(--muted)] hover:bg-[var(--surface-muted)]"
+                      onClick={() => setEditing(selected)}
+                      className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-[var(--muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--accent)]"
                     >
                       <Pencil className="size-3.5" /> Editar
                     </button>
                     <button
                       type="button"
-                      onClick={() => remove(item)}
+                      onClick={() => remove(selected)}
                       className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-[var(--muted)] hover:bg-red-50 hover:text-[var(--danger)]"
                     >
                       <Trash2 className="size-3.5" /> Eliminar
                     </button>
                   </div>
+                ) : null}
+              </div>
+
+              {selected?.technologyNames?.length ? (
+                <div className="mb-3 flex flex-wrap gap-1.5">
+                  {selected.technologyNames.map((tech) => (
+                    <span
+                      key={tech}
+                      className="rounded-md bg-[var(--accent-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--accent-strong)]"
+                    >
+                      {tech}
+                    </span>
+                  ))}
                 </div>
-                {item.summary ? (
-                  <p className="mt-2 text-sm text-[var(--muted)]">{item.summary}</p>
-                ) : null}
-                {item.technologyNames?.length ? (
-                  <p className="mt-2 text-xs text-[var(--muted)]">
-                    {item.technologyNames.join(", ")}
-                  </p>
-                ) : null}
-              </article>
-            ))}
-          </div>
+              ) : null}
+
+              <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">
+                Resumen
+              </p>
+              <pre className="max-h-[16rem] overflow-auto whitespace-pre-wrap rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-4 py-3 text-sm leading-relaxed text-[var(--ink)]">
+                {selected?.summary || "Sin resumen."}
+              </pre>
+
+              <p className="mb-1 mt-3 text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">
+                Logros
+              </p>
+              <pre className="max-h-[16rem] overflow-auto whitespace-pre-wrap rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-4 py-3 text-sm leading-relaxed text-[var(--ink)]">
+                {selected?.achievements || "Sin logros."}
+              </pre>
+            </article>
+          </section>
         )
       )}
 

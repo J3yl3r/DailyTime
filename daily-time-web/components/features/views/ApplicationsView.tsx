@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ExternalLink, Gauge, Pencil, Trash2 } from "lucide-react";
+import { ExternalLink, Eye, Gauge, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { JobApplication } from "@/types/api";
 import { evaluateFit, type FitScoreResult } from "@/lib/api/career";
@@ -17,6 +17,7 @@ import {
   DataListLink,
 } from "@/components/ui/DataList";
 import { FormModal } from "@/components/shared/form-modal";
+import { DetailField, VacancyBody } from "@/components/features/career/vacancy-detail";
 import { useConfirm } from "@/providers/confirm-provider";
 import Link from "next/link";
 import { cn } from "@/lib/utils/cn";
@@ -291,6 +292,7 @@ function toDraft(item: JobApplication): ApplicationDraft {
 export function ApplicationsView() {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<JobApplication | null>(null);
+  const [viewing, setViewing] = useState<JobApplication | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [fitResult, setFitResult] = useState<FitScoreResult | null>(null);
   const [fitFor, setFitFor] = useState<JobApplication | null>(null);
@@ -494,9 +496,11 @@ export function ApplicationsView() {
               .filter(Boolean)
               .join(" · ")
           }
-          description={(item) => (item.notes ? item.notes : null)}
           actions={(item) => (
             <>
+              <DataListAction onClick={() => setViewing(item)}>
+                <Eye className="size-3.5" /> Ver
+              </DataListAction>
               {item.url ? (
                 <DataListLink href={item.url}>
                   <ExternalLink className="size-3.5" /> Abrir
@@ -534,6 +538,56 @@ export function ApplicationsView() {
             submitLabel="Actualizar"
             pending={mutations.update.isPending}
           />
+        ) : null}
+      </FormModal>
+
+      <FormModal
+        open={viewing != null}
+        onOpenChange={(open) => !open && setViewing(null)}
+        title={
+          viewing
+            ? `${viewing.positionName} · ${viewing.companyName}`
+            : "Detalle de la postulación"
+        }
+        size="lg"
+      >
+        {viewing ? (
+          <div className="flex flex-col gap-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <DetailField label="Estado" value={viewing.statusName} />
+              <DetailField
+                label="Fecha de postulación"
+                value={viewing.appliedAt.slice(0, 10)}
+              />
+              <DetailField label="Empresa" value={viewing.companyName} />
+              <DetailField label="Cargo" value={viewing.positionName} />
+              <DetailField label="Ubicación" value={viewing.locationName} />
+              <DetailField label="Carrera" value={viewing.fieldName} />
+              <DetailField label="Contacto" value={viewing.contact} />
+              <DetailField label="CV / experiencia" value={viewing.workExperienceLabel} />
+            </div>
+            {viewing.url ? (
+              <a
+                href={viewing.url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex w-fit items-center gap-1 text-sm text-[var(--accent)] hover:underline"
+              >
+                <ExternalLink className="size-3.5" />
+                Abrir vacante original
+              </a>
+            ) : null}
+            <div>
+              <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">
+                Notas
+              </p>
+              {viewing.notes?.trim() ? (
+                <VacancyBody text={viewing.notes} />
+              ) : (
+                <p className="text-sm text-[var(--muted)]">Sin notas.</p>
+              )}
+            </div>
+          </div>
         ) : null}
       </FormModal>
 

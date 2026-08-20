@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { History, Pencil, Play, Trash2, Layers, Timer } from "lucide-react";
+import { History, Pencil, Play, Square, Trash2, Layers, Timer, Globe } from "lucide-react";
 import { toast } from "sonner";
 import type { JobPortal, JobPortalScrapeLog } from "@/types/api";
 import { useJobPortals } from "@/hooks/queries/use-job-portals";
 import { useJobPortalMutations } from "@/hooks/mutations/use-job-portal-mutations";
 import { getJobPortalScrapeLogs } from "@/lib/api/job-portals";
+import { openChromeDebug } from "@/lib/api/worker";
 import { CreatePanel } from "@/components/ui/CreatePanel";
 import { FormModal } from "@/components/shared/form-modal";
 import { useConfirm } from "@/providers/confirm-provider";
@@ -319,6 +320,20 @@ export function JobPortalsView() {
   const { notify } = useAppNotifications();
   const items = [...(query.data ?? [])].sort((a, b) => a.id - b.id);
   const busy = scrape.isRunningAll || scrape.currentPortalId != null;
+  const autoCount = scrape.autoPortalIds.filter((id) =>
+    items.some((item) => item.id === id && item.isActive),
+  ).length;
+
+  const openChrome = async () => {
+    try {
+      const result = await openChromeDebug();
+      toast.success("Chrome debug", { description: result.message });
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "No se pudo abrir Chrome. ¿Está el worker en :5500?",
+      );
+    }
+  };
 
   const openLogs = async (item: JobPortal) => {
     setLogsPortal(item);
@@ -374,7 +389,12 @@ export function JobPortalsView() {
     notify({
       title: `${item.name}: ${result.status}`,
       body: result.message || "Captura finalizada",
-      tone: result.status === "error" || result.status === "blocked" ? "error" : "success",
+      tone:
+        result.status === "error" || result.status === "blocked"
+          ? "error"
+          : result.status === "cancelled"
+            ? "info"
+            : "success",
     });
   };
 
@@ -382,8 +402,9 @@ export function JobPortalsView() {
     <div className="mx-auto flex max-w-4xl flex-col gap-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <p className="text-sm text-[var(--muted)]">
-          Captura individual o todos en secuencia. La automática corre cada 10 minutos
-          mientras esta pestaña esté abierta (notificaciones en la campana).
+          Captura individual o todos en secuencia. La automática corre cada{" "}
+          {scrape.intervalMinutes} minutos mientras esta pestaña esté abierta
+          (notificaciones en la campana).
         </p>
         <CreatePanel
           open={creating}
@@ -401,6 +422,28 @@ export function JobPortalsView() {
       </div>
 
       <div className="flex flex-col gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-card)]">
+        <div>
+          <p className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--ink)]">
+            <Globe className="size-4" />
+            Chrome debug
+          </p>
+          <p className="mt-1 text-xs text-[var(--muted)]">
+            Abre Chrome con depuración remota (puerto 9222) para revisar que las
+            cuentas estén logueadas. El scraper también lo abre al capturar si no
+            está activo.
+          </p>
+          <button
+            type="button"
+            onClick={() => void openChrome()}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-[var(--accent)] px-3 py-2 text-sm font-medium text-white hover:bg-[var(--accent-strong)]"
+          >
+            <Globe className="size-4" />
+            Abrir Chrome
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-card)]">
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -411,6 +454,16 @@ export function JobPortalsView() {
             <Layers className="size-4" />
             {scrape.isRunningAll ? "Capturando todos…" : "Capturar todos (secuencia)"}
           </button>
+          {busy ? (
+            <button
+              type="button"
+              onClick={() => void scrape.stop()}
+              className="inline-flex items-center gap-1.5 rounded-md border border-[var(--danger)] px-3 py-2 text-sm font-medium text-[var(--danger)] hover:bg-red-50"
+            >
+              <Square className="size-4" />
+              Detener
+            </button>
+          ) : null}
           <label
             className={cn(
               "inline-flex cursor-pointer items-center gap-2 rounded-md border border-[var(--border)] px-3 py-2 text-sm",
@@ -445,8 +498,8 @@ export function JobPortalsView() {
         <p className="text-xs text-[var(--muted)]">
           Intervalo permitido: {MIN_INTERVAL_MINUTES}–{MAX_INTERVAL_MINUTES} min (recomendado 60).
           {scrape.autoEnabled
-            ? ` Automática activa.${scrape.nextAutoAt ? ` Próxima: ${new Date(scrape.nextAutoAt).toLocaleTimeString()}.` : ""}${scrape.lastAutoAt ? ` Última: ${new Date(scrape.lastAutoAt).toLocaleString()}.` : ""}`
-            : " Automática desactivada. Puedes capturar uno por uno o todos en secuencia."}
+            ? ` Automática activa (${autoCount} portal${autoCount === 1 ? "" : "es"}).${scrape.nextAutoAt ? ` Próxima: ${new Date(scrape.nextAutoAt).toLocaleTimeString()}.` : ""}${scrape.lastAutoAt ? ` Última: ${new Date(scrape.lastAutoAt).toLocaleString()}.` : ""}`
+            : " Automática desactivada. Marca Automática en cada portal que quieras incluir."}
           {scrape.currentPortalId
             ? ` · Ejecutando portal #${scrape.currentPortalId}…`
             : ""}
@@ -484,10 +537,20 @@ export function JobPortalsView() {
                   </p>
                 </div>
                 <div className="flex flex-wrap justify-start gap-1">
+                  <label className="mr-2 inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-xs text-[var(--muted)] hover:bg-[var(--surface-muted)]">
+                    <input
+                      type="checkbox"
+                      className="size-3.5 accent-[var(--accent)]"
+                      checked={scrape.autoPortalIds.includes(item.id)}
+                      disabled={!item.isActive}
+                      onChange={() => scrape.toggleAutoPortal(item.id)}
+                    />
+                    Automática
+                  </label>
                   <button
                     type="button"
                     onClick={() => void capture(item)}
-                    disabled={!item.isActive || busy}
+                    disabled={!item.isActive || scrape.isRunningAll || scrape.currentPortalId === item.id}
                     className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-[var(--muted)] hover:bg-[var(--surface-muted)] disabled:opacity-50"
                   >
                     <Play className="size-3.5" />

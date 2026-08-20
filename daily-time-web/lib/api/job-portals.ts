@@ -7,6 +7,10 @@ export function getJobPortals(onlyActive?: boolean) {
   return apiClient.get<JobPortal[]>(`/api/job-portals${query}`);
 }
 
+export function getJobPortal(id: number) {
+  return apiClient.get<JobPortal>(`/api/job-portals/${id}`);
+}
+
 export function createJobPortal(body: JobPortalInput) {
   return apiClient.post<JobPortal>("/api/job-portals", {
     name: body.name,

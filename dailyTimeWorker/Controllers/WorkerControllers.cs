@@ -1,4 +1,5 @@
 using dailyTimeWorker.Models;
+using dailyTimeWorker.Services.Chrome;
 using dailyTimeWorker.Services.Notifications;
 using dailyTimeWorker.Services.Scraping;
 using Microsoft.AspNetCore.Mvc;
@@ -23,8 +24,13 @@ public class HealthController : ControllerBase
 public class ScrapeJobsController : ControllerBase
 {
     private readonly IPortalScrapeService _scrape;
+    private readonly IScrapeRunCoordinator _runs;
 
-    public ScrapeJobsController(IPortalScrapeService scrape) => _scrape = scrape;
+    public ScrapeJobsController(IPortalScrapeService scrape, IScrapeRunCoordinator runs)
+    {
+        _scrape = scrape;
+        _runs = runs;
+    }
 
     /// <summary>Procesa todos los portales con status queued_playwright.</summary>
     [HttpPost("queued")]
@@ -33,6 +39,27 @@ public class ScrapeJobsController : ControllerBase
     {
         var results = await _scrape.ProcessQueuedAsync(cancellationToken);
         return Ok(results);
+    }
+
+    [HttpGet("status")]
+    public ActionResult<object> Status() => Ok(new
+    {
+        runningPortalIds = _runs.RunningPortalIds,
+        running = _runs.RunningPortalIds.Count > 0
+    });
+
+    /// <summary>Detiene el scrape (o la secuencia) en curso sin apagar el worker.</summary>
+    [HttpPost("stop")]
+    public ActionResult<object> Stop()
+    {
+        var cancelled = _runs.CancelRunning();
+        return Ok(new
+        {
+            cancelled,
+            message = cancelled
+                ? "Se pidió detener la captura en curso."
+                : "No hay ninguna captura en curso."
+        });
     }
 
     /// <summary>Fuerza scrape de un portal por id (aunque no esté encolado).</summary>
@@ -45,10 +72,40 @@ public class ScrapeJobsController : ControllerBase
             var result = await _scrape.ProcessPortalAsync(portalId, cancellationToken);
             return Ok(result);
         }
+        catch (OperationCanceledException)
+        {
+            return Ok(new ScrapeResult
+            {
+                PortalId = portalId,
+                PortalName = $"portal #{portalId}",
+                Status = "cancelled",
+                Message = "Captura detenida.",
+                Offers = []
+            });
+        }
         catch (InvalidOperationException ex)
         {
             return NotFound(new { message = ex.Message });
         }
+    }
+}
+
+[ApiController]
+[Route("api/chrome")]
+public class ChromeController : ControllerBase
+{
+    private readonly IChromeDebugLauncher _launcher;
+
+    public ChromeController(IChromeDebugLauncher launcher) => _launcher = launcher;
+
+    [HttpPost("debug")]
+    public async Task<ActionResult<ChromeDebugLaunchResult>> OpenDebug(
+        CancellationToken cancellationToken)
+    {
+        var result = await _launcher.LaunchAsync(cancellationToken);
+        if (!result.Started)
+            return BadRequest(new { message = result.Message });
+        return Ok(result);
     }
 }
 

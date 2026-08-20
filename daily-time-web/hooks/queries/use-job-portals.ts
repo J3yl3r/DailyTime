@@ -8,5 +8,6 @@ export function useJobPortals(onlyActive?: boolean) {
   return useQuery({
     queryKey: jobPortalKeys.list(onlyActive),
     queryFn: () => getJobPortals(onlyActive),
+    placeholderData: (previous) => previous,
   });
 }
