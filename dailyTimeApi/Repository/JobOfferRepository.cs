@@ -28,7 +28,8 @@ public class JobOfferRepository : IJobOfferRepository
     {
         var query = ApplyFilter(_context.JobOffers.AsNoTracking().Include(x => x.JobPortal), filter);
         return await query
-            .OrderByDescending(x => x.PostedAt ?? x.CapturedAt)
+            .OrderBy(x => x.SortOrder)
+            .ThenByDescending(x => x.PostedAt ?? x.CapturedAt)
             .ThenByDescending(x => x.CapturedAt)
             .ToListAsync(cancellationToken);
     }
@@ -151,6 +152,27 @@ public class JobOfferRepository : IJobOfferRepository
             .ExecuteDeleteAsync(cancellationToken);
     }
 
+    public async Task ReorderAsync(
+        IReadOnlyList<int> orderedIds, CancellationToken cancellationToken = default)
+    {
+        if (orderedIds.Count == 0)
+            return;
+
+        var now = DateTime.UtcNow;
+        for (var i = 0; i < orderedIds.Count; i++)
+        {
+            var id = orderedIds[i];
+            var order = i;
+            await _context.JobOffers
+                .Where(x => x.Id == id)
+                .ExecuteUpdateAsync(
+                    s => s
+                        .SetProperty(x => x.SortOrder, order)
+                        .SetProperty(x => x.UpdatedAt, now),
+                    cancellationToken);
+        }
+    }
+
     public async Task AddAsync(JobOffer entity, CancellationToken cancellationToken = default) =>
         await _context.JobOffers.AddAsync(entity, cancellationToken);
 
@@ -167,11 +189,21 @@ public class JobOfferRepository : IJobOfferRepository
         if (filter is null)
             return query;
 
-        if (filter.PortalId.HasValue)
-            query = query.Where(x => x.JobPortalId == filter.PortalId.Value);
+        var portalIds = filter.PortalIds?.Where(p => p > 0).ToList() ?? [];
+        if (filter.PortalId.HasValue && filter.PortalId.Value > 0 && !portalIds.Contains(filter.PortalId.Value))
+            portalIds.Add(filter.PortalId.Value);
+        if (portalIds.Count > 0)
+            query = query.Where(x => portalIds.Contains(x.JobPortalId));
 
+        var statuses = filter.Statuses?.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim().ToLower()).ToList() ?? [];
         if (!string.IsNullOrWhiteSpace(filter.Status))
-            query = query.Where(x => x.Status == filter.Status.Trim());
+        {
+            var single = filter.Status.Trim().ToLower();
+            if (!statuses.Contains(single))
+                statuses.Add(single);
+        }
+        if (statuses.Count > 0)
+            query = query.Where(x => statuses.Contains(x.Status.ToLower()));
 
         if (!string.IsNullOrWhiteSpace(filter.Search))
         {
@@ -182,22 +214,37 @@ public class JobOfferRepository : IJobOfferRepository
                 || (x.Location != null && EF.Functions.Like(x.Location, term)));
         }
 
-        if (!string.IsNullOrWhiteSpace(filter.Country))
-            query = query.Where(x => x.Country == filter.Country.Trim());
+        var countries = filter.Countries?.Where(c => !string.IsNullOrWhiteSpace(c)).Select(c => c.Trim()).ToList() ?? [];
+        if (!string.IsNullOrWhiteSpace(filter.Country) && !countries.Contains(filter.Country.Trim()))
+            countries.Add(filter.Country.Trim());
+        if (countries.Count > 0)
+            query = query.Where(x => x.Country != null && countries.Contains(x.Country));
 
-        if (!string.IsNullOrWhiteSpace(filter.Language))
-            query = query.Where(x => x.Language == filter.Language.Trim());
+        var languages = filter.Languages?.Where(l => !string.IsNullOrWhiteSpace(l)).Select(l => l.Trim()).ToList() ?? [];
+        if (!string.IsNullOrWhiteSpace(filter.Language) && !languages.Contains(filter.Language.Trim()))
+            languages.Add(filter.Language.Trim());
+        if (languages.Count > 0)
+            query = query.Where(x => x.Language != null && languages.Contains(x.Language));
 
-        if (!string.IsNullOrWhiteSpace(filter.WorkModality))
-            query = query.Where(x => x.WorkModality == filter.WorkModality.Trim());
+        var modalities = filter.WorkModalities?.Where(m => !string.IsNullOrWhiteSpace(m)).Select(m => m.Trim()).ToList() ?? [];
+        if (!string.IsNullOrWhiteSpace(filter.WorkModality) && !modalities.Contains(filter.WorkModality.Trim()))
+            modalities.Add(filter.WorkModality.Trim());
+        if (modalities.Count > 0)
+            query = query.Where(x => x.WorkModality != null && modalities.Contains(x.WorkModality));
 
-        if (!string.IsNullOrWhiteSpace(filter.ContractType))
-            query = query.Where(x => x.ContractType == filter.ContractType.Trim());
+        var contractTypes = filter.ContractTypes?.Where(c => !string.IsNullOrWhiteSpace(c)).Select(c => c.Trim()).ToList() ?? [];
+        if (!string.IsNullOrWhiteSpace(filter.ContractType) && !contractTypes.Contains(filter.ContractType.Trim()))
+            contractTypes.Add(filter.ContractType.Trim());
+        if (contractTypes.Count > 0)
+            query = query.Where(x => x.ContractType != null && contractTypes.Contains(x.ContractType));
 
-        if (!string.IsNullOrWhiteSpace(filter.TechStack))
+        var techStacks = filter.TechStacks?.Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t.Trim()).ToList() ?? [];
+        if (!string.IsNullOrWhiteSpace(filter.TechStack) && !techStacks.Contains(filter.TechStack.Trim()))
+            techStacks.Add(filter.TechStack.Trim());
+        if (techStacks.Count > 0)
         {
-            var tech = filter.TechStack.Trim();
-            query = query.Where(x => x.TechStack != null && EF.Functions.Like(x.TechStack, $"%{tech}%"));
+            var predicate = PredicateBuilderOrTechStacks(techStacks);
+            query = query.Where(predicate);
         }
 
         if (filter.CapturedFrom.HasValue)
@@ -223,5 +270,31 @@ public class JobOfferRepository : IJobOfferRepository
         }
 
         return query;
+    }
+
+    private static System.Linq.Expressions.Expression<Func<JobOffer, bool>> PredicateBuilderOrTechStacks(List<string> techStacks)
+    {
+        var param = System.Linq.Expressions.Expression.Parameter(typeof(JobOffer), "x");
+        var prop = System.Linq.Expressions.Expression.Property(param, nameof(JobOffer.TechStack));
+        var notNull = System.Linq.Expressions.Expression.NotEqual(prop, System.Linq.Expressions.Expression.Constant(null, typeof(string)));
+
+        var efFunctions = System.Linq.Expressions.Expression.Property(null, typeof(EF), nameof(EF.Functions));
+        var likeMethod = typeof(DbFunctionsExtensions).GetMethod(
+            nameof(DbFunctionsExtensions.Like),
+            new[] { typeof(DbFunctions), typeof(string), typeof(string) })!;
+
+        System.Linq.Expressions.Expression? combinedLikes = null;
+        foreach (var tech in techStacks)
+        {
+            var pattern = System.Linq.Expressions.Expression.Constant($"%{tech}%", typeof(string));
+            var likeCall = System.Linq.Expressions.Expression.Call(null, likeMethod, efFunctions, prop, pattern);
+            combinedLikes = combinedLikes == null ? likeCall : System.Linq.Expressions.Expression.OrElse(combinedLikes, likeCall);
+        }
+
+        var body = combinedLikes != null
+            ? System.Linq.Expressions.Expression.AndAlso(notNull, combinedLikes)
+            : notNull;
+
+        return System.Linq.Expressions.Expression.Lambda<Func<JobOffer, bool>>(body, param);
     }
 }

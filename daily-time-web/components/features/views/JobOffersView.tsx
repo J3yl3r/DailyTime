@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ExternalLink, Eye, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { JobOffer, JobOfferFilters } from "@/types/api";
@@ -14,6 +14,11 @@ import {
   DataListAction,
   DataListBadge,
 } from "@/components/ui/DataList";
+import {
+  MultiSelect,
+  FilterPillsBar,
+  type MultiSelectOption,
+} from "@/components/ui/MultiSelect";
 import { FormModal } from "@/components/shared/form-modal";
 import { DetailField, VacancyBody } from "@/components/features/career/vacancy-detail";
 import { todayApiDate } from "@/lib/utils/date";
@@ -50,45 +55,46 @@ export function JobOffersView() {
   const portals = useJobPortals();
   const meta = useJobOfferMeta();
   const confirm = useConfirm();
-  const [portalId, setPortalId] = useState<number | "all">("all");
-  const [status, setStatus] = useState("new");
+  const [selectedPortalIds, setSelectedPortalIds] = useState<number[]>([]);
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>(["new"]);
   const [search, setSearch] = useState("");
-  const [country, setCountry] = useState("");
-  const [language, setLanguage] = useState("");
-  const [workModality, setWorkModality] = useState("");
-  const [contractType, setContractType] = useState("");
-  const [techStack, setTechStack] = useState("");
+  const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
+  const [selectedWorkModalities, setSelectedWorkModalities] = useState<string[]>([]);
+  const [selectedContractTypes, setSelectedContractTypes] = useState<string[]>([]);
+  const [selectedTechStacks, setSelectedTechStacks] = useState<string[]>([]);
   const [capturedFrom, setCapturedFrom] = useState(todayApiDate);
   const [capturedTo, setCapturedTo] = useState(todayApiDate);
   const [postedFrom, setPostedFrom] = useState("");
   const [postedTo, setPostedTo] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [viewing, setViewing] = useState<JobOffer | null>(null);
+  const [localItems, setLocalItems] = useState<JobOffer[] | null>(null);
 
   const filters = useMemo<JobOfferFilters>(() => {
     const f: JobOfferFilters = {};
-    if (portalId !== "all") f.portalId = portalId;
-    if (status !== "all") f.status = status;
+    if (selectedPortalIds.length > 0) f.portalIds = selectedPortalIds;
+    if (selectedStatuses.length > 0) f.statuses = selectedStatuses;
     if (search.trim()) f.search = search.trim();
-    if (country) f.country = country;
-    if (language) f.language = language;
-    if (workModality) f.workModality = workModality;
-    if (contractType) f.contractType = contractType;
-    if (techStack) f.techStack = techStack;
+    if (selectedCountries.length > 0) f.countries = selectedCountries;
+    if (selectedLanguages.length > 0) f.languages = selectedLanguages;
+    if (selectedWorkModalities.length > 0) f.workModalities = selectedWorkModalities;
+    if (selectedContractTypes.length > 0) f.contractTypes = selectedContractTypes;
+    if (selectedTechStacks.length > 0) f.techStacks = selectedTechStacks;
     if (capturedFrom) f.capturedFrom = capturedFrom;
     if (capturedTo) f.capturedTo = capturedTo;
     if (postedFrom) f.postedFrom = postedFrom;
     if (postedTo) f.postedTo = postedTo;
     return f;
   }, [
-    portalId,
-    status,
+    selectedPortalIds,
+    selectedStatuses,
     search,
-    country,
-    language,
-    workModality,
-    contractType,
-    techStack,
+    selectedCountries,
+    selectedLanguages,
+    selectedWorkModalities,
+    selectedContractTypes,
+    selectedTechStacks,
     capturedFrom,
     capturedTo,
     postedFrom,
@@ -97,13 +103,31 @@ export function JobOffersView() {
 
   const query = useJobOffers(filters);
   const mutations = useJobOfferMutations();
-  const items = query.data ?? [];
+
+  useEffect(() => {
+    setLocalItems(null);
+  }, [query.data]);
+
+  const items = localItems ?? query.data ?? [];
   const portalOptions = useMemo(() => portals.data ?? [], [portals.data]);
   const countries = meta.data?.countries ?? [];
   const languages = meta.data?.languages ?? [];
   const workModalities = meta.data?.workModalities ?? [];
   const contractTypes = meta.data?.contractTypes ?? [];
   const techStacks = meta.data?.techStacks ?? [];
+
+  const handleReorder = (newItems: JobOffer[]) => {
+    setLocalItems(newItems);
+    const ids = newItems.map((item) => item.id);
+    mutations.reorder.mutate(ids, {
+      onError: (error) => {
+        setLocalItems(null);
+        toast.error(
+          error instanceof Error ? error.message : "No se pudo guardar el orden"
+        );
+      },
+    });
+  };
 
   const allVisibleSelected =
     items.length > 0 && items.every((item) => selectedIds.has(item.id));
@@ -223,16 +247,56 @@ export function JobOffersView() {
     });
   };
 
+  const portalMultiOptions: MultiSelectOption[] = useMemo(
+    () => portalOptions.map((p) => ({ value: p.id, label: p.name })),
+    [portalOptions]
+  );
+
+  const statusMultiOptions: MultiSelectOption[] = useMemo(
+    () =>
+      Object.entries(STATUS_LABELS).map(([value, label]) => ({
+        value,
+        label,
+        color: STATUS_COLORS[value],
+      })),
+    []
+  );
+
+  const countryMultiOptions: MultiSelectOption[] = useMemo(
+    () => countries.map((c) => ({ value: c, label: c })),
+    [countries]
+  );
+
+  const languageMultiOptions: MultiSelectOption[] = useMemo(
+    () => languages.map((l) => ({ value: l, label: formatLanguage(l) })),
+    [languages]
+  );
+
+  const modalityMultiOptions: MultiSelectOption[] = useMemo(
+    () => workModalities.map((m) => ({ value: m, label: m })),
+    [workModalities]
+  );
+
+  const contractMultiOptions: MultiSelectOption[] = useMemo(
+    () => contractTypes.map((c) => ({ value: c, label: c })),
+    [contractTypes]
+  );
+
+  const techStackMultiOptions: MultiSelectOption[] = useMemo(
+    () => techStacks.map((s) => ({ value: s, label: s })),
+    [techStacks]
+  );
+
   const clearFilters = () => {
     const today = todayApiDate();
-    setPortalId("all");
-    setStatus("new");
+    setSelectedPortalIds([]);
+    setSelectedStatuses(["new"]);
     setSearch("");
-    setCountry("");
-    setLanguage("");
-    setWorkModality("");
-    setContractType("");
-    setTechStack("");
+    setSelectedCountries([]);
+    setSelectedLanguages([]);
+    setSelectedWorkModalities([]);
+    setSelectedContractTypes([]);
+    setSelectedTechStacks([]);
     setCapturedFrom(today);
     setCapturedTo(today);
     setPostedFrom("");
@@ -240,10 +304,91 @@ export function JobOffersView() {
     clearSelection();
   };
 
+  const activePills = useMemo(() => {
+    const pills: { id: string; label: string; onRemove: () => void }[] = [];
+
+    selectedPortalIds.forEach((id) => {
+      const p = portalOptions.find((o) => o.id === id);
+      if (p) {
+        pills.push({
+          id: `portal-${id}`,
+          label: `Portal: ${p.name}`,
+          onRemove: () =>
+            setSelectedPortalIds((prev) => prev.filter((x) => x !== id)),
+        });
+      }
+    });
+
+    selectedStatuses.forEach((st) => {
+      pills.push({
+        id: `status-${st}`,
+        label: `Estado: ${STATUS_LABELS[st] ?? st}`,
+        onRemove: () =>
+          setSelectedStatuses((prev) => prev.filter((x) => x !== st)),
+      });
+    });
+
+    selectedCountries.forEach((c) => {
+      pills.push({
+        id: `country-${c}`,
+        label: `País: ${c}`,
+        onRemove: () =>
+          setSelectedCountries((prev) => prev.filter((x) => x !== c)),
+      });
+    });
+
+    selectedLanguages.forEach((l) => {
+      pills.push({
+        id: `lang-${l}`,
+        label: `Idioma: ${formatLanguage(l)}`,
+        onRemove: () =>
+          setSelectedLanguages((prev) => prev.filter((x) => x !== l)),
+      });
+    });
+
+    selectedWorkModalities.forEach((m) => {
+      pills.push({
+        id: `modality-${m}`,
+        label: `Modalidad: ${m}`,
+        onRemove: () =>
+          setSelectedWorkModalities((prev) => prev.filter((x) => x !== m)),
+      });
+    });
+
+    selectedContractTypes.forEach((c) => {
+      pills.push({
+        id: `contract-${c}`,
+        label: `Contrato: ${c}`,
+        onRemove: () =>
+          setSelectedContractTypes((prev) => prev.filter((x) => x !== c)),
+      });
+    });
+
+    selectedTechStacks.forEach((s) => {
+      pills.push({
+        id: `stack-${s}`,
+        label: `Stack: ${s}`,
+        onRemove: () =>
+          setSelectedTechStacks((prev) => prev.filter((x) => x !== s)),
+      });
+    });
+
+    return pills;
+  }, [
+    selectedPortalIds,
+    portalOptions,
+    selectedStatuses,
+    selectedCountries,
+    selectedLanguages,
+    selectedWorkModalities,
+    selectedContractTypes,
+    selectedTechStacks,
+  ]);
+
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-5">
       <p className="text-sm text-[var(--muted)]">
-        Filtra por cargo, país, idioma, stack (.NET, React…), modalidad, contrato y fechas.
+        Filtra por selección múltiple de cargo, portales, país, idioma, stack (.NET, React…), modalidad, contrato y fechas.
         Selecciona varias ofertas para marcarlas, descartarlas o eliminarlas en bloque.
       </p>
 
@@ -259,118 +404,62 @@ export function JobOffersView() {
           />
         </label>
 
-        <label className="flex flex-col gap-1 text-xs font-medium text-[var(--muted)]">
-          Portal
-          <select
-            value={portalId === "all" ? "all" : String(portalId)}
-            onChange={(e) =>
-              setPortalId(e.target.value === "all" ? "all" : Number(e.target.value))
-            }
-            className={inputClass}
-          >
-            <option value="all">Todos</option>
-            {portalOptions.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <MultiSelect
+          label="Portales"
+          placeholder="Todos los portales"
+          options={portalMultiOptions}
+          value={selectedPortalIds}
+          onChange={setSelectedPortalIds}
+        />
 
-        <label className="flex flex-col gap-1 text-xs font-medium text-[var(--muted)]">
-          Estado
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className={inputClass}
-          >
-            <option value="all">Todos</option>
-            <option value="new">Nuevas</option>
-            <option value="seen">Vistas</option>
-            <option value="discarded">Descartadas</option>
-            <option value="applied">Postuladas</option>
-          </select>
-        </label>
+        <MultiSelect
+          label="Estados"
+          placeholder="Todos los estados"
+          options={statusMultiOptions}
+          value={selectedStatuses}
+          onChange={setSelectedStatuses}
+        />
 
-        <label className="flex flex-col gap-1 text-xs font-medium text-[var(--muted)]">
-          País
-          <select
-            value={country}
-            onChange={(e) => setCountry(e.target.value)}
-            className={inputClass}
-          >
-            <option value="">Todos</option>
-            {countries.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </label>
+        <MultiSelect
+          label="Países"
+          placeholder="Todos los países"
+          options={countryMultiOptions}
+          value={selectedCountries}
+          onChange={setSelectedCountries}
+        />
 
-        <label className="flex flex-col gap-1 text-xs font-medium text-[var(--muted)]">
-          Idioma
-          <select
-            value={language}
-            onChange={(e) => setLanguage(e.target.value)}
-            className={inputClass}
-          >
-            <option value="">Todos</option>
-            {languages.map((lang) => (
-              <option key={lang} value={lang}>
-                {formatLanguage(lang)}
-              </option>
-            ))}
-          </select>
-        </label>
+        <MultiSelect
+          label="Idiomas"
+          placeholder="Todos los idiomas"
+          options={languageMultiOptions}
+          value={selectedLanguages}
+          onChange={setSelectedLanguages}
+        />
 
-        <label className="flex flex-col gap-1 text-xs font-medium text-[var(--muted)]">
-          Modalidad
-          <select
-            value={workModality}
-            onChange={(e) => setWorkModality(e.target.value)}
-            className={inputClass}
-          >
-            <option value="">Todas</option>
-            {workModalities.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
-        </label>
+        <MultiSelect
+          label="Modalidad"
+          placeholder="Todas las modalidades"
+          options={modalityMultiOptions}
+          value={selectedWorkModalities}
+          onChange={setSelectedWorkModalities}
+        />
 
-        <label className="flex flex-col gap-1 text-xs font-medium text-[var(--muted)]">
-          Tipo de contrato
-          <select
-            value={contractType}
-            onChange={(e) => setContractType(e.target.value)}
-            className={inputClass}
-          >
-            <option value="">Todos</option>
-            {contractTypes.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </label>
+        <MultiSelect
+          label="Tipo de contrato"
+          placeholder="Todos los contratos"
+          options={contractMultiOptions}
+          value={selectedContractTypes}
+          onChange={setSelectedContractTypes}
+        />
 
-        <label className="flex flex-col gap-1 text-xs font-medium text-[var(--muted)]">
-          Lenguaje / stack
-          <select
-            value={techStack}
-            onChange={(e) => setTechStack(e.target.value)}
-            className={inputClass}
-          >
-            <option value="">Todos</option>
-            {techStacks.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-        </label>
+        <MultiSelect
+          label="Lenguaje / stack"
+          placeholder="Todos los stacks"
+          options={techStackMultiOptions}
+          value={selectedTechStacks}
+          onChange={setSelectedTechStacks}
+          className="sm:col-span-2 lg:col-span-3"
+        />
 
         <label className="flex flex-col gap-1 text-xs font-medium text-[var(--muted)]">
           Capturada desde
@@ -412,15 +501,21 @@ export function JobOffersView() {
           />
         </label>
 
-        <div className="flex flex-wrap items-end gap-2 sm:col-span-2 lg:col-span-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 sm:col-span-2 lg:col-span-3">
           <button
             type="button"
             onClick={clearFilters}
-            className="rounded-md px-3 py-1.5 text-xs text-[var(--muted)] hover:bg-[var(--surface-muted)]"
+            className="rounded-md px-3 py-1.5 text-xs text-[var(--muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--ink)]"
           >
             Limpiar filtros
           </button>
         </div>
+
+        {activePills.length > 0 && (
+          <div className="border-t border-[var(--border)] pt-2 sm:col-span-2 lg:col-span-3">
+            <FilterPillsBar pills={activePills} onClearAll={clearFilters} />
+          </div>
+        )}
       </div>
 
       {someSelected ? (
@@ -479,6 +574,8 @@ export function JobOffersView() {
         <DataList
           items={items}
           getKey={(item) => item.id}
+          isSortable
+          onReorder={handleReorder}
           emptyMessage="No hay ofertas con estos filtros."
           selected={(item) => selectedIds.has(item.id)}
           onToggleSelect={(item) => toggleSelect(item.id)}

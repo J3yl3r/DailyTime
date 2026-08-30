@@ -18,5 +18,7 @@ public interface IJobOfferService
         BulkJobOfferStatusRequest request, CancellationToken cancellationToken = default);
     Task<BulkJobOfferActionResponse> BulkDeleteAsync(
         BulkJobOfferDeleteRequest request, CancellationToken cancellationToken = default);
+    Task ReorderAsync(
+        ReorderJobOffersRequest request, CancellationToken cancellationToken = default);
     Task DeleteAsync(int id, CancellationToken cancellationToken = default);
 }
