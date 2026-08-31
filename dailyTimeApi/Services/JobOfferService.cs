@@ -210,6 +210,16 @@ public class JobOfferService : IJobOfferService
         return new BulkJobOfferActionResponse { Affected = affected };
     }
 
+    public async Task ReorderAsync(
+        ReorderJobOffersRequest request, CancellationToken cancellationToken = default)
+    {
+        var ids = request.Ids?.Where(x => x > 0).Distinct().ToList() ?? [];
+        if (ids.Count == 0)
+            return;
+
+        await _repository.ReorderAsync(ids, cancellationToken);
+    }
+
     public async Task DeleteAsync(int id, CancellationToken cancellationToken = default)
     {
         var entity = await _repository.GetTrackedByIdAsync(id, cancellationToken)
@@ -245,6 +255,7 @@ public class JobOfferService : IJobOfferService
         TechStack = entity.TechStack,
         PostedAt = entity.PostedAt,
         Status = entity.Status,
+        SortOrder = entity.SortOrder,
         CapturedAt = entity.CapturedAt,
         UpdatedAt = entity.UpdatedAt
     };

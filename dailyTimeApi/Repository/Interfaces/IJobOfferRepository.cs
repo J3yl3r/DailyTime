@@ -24,6 +24,7 @@ public interface IJobOfferRepository
         IReadOnlyList<int> ids, string status, CancellationToken cancellationToken = default);
     Task<int> BulkDeleteAsync(
         IReadOnlyList<int> ids, CancellationToken cancellationToken = default);
+    Task ReorderAsync(IReadOnlyList<int> orderedIds, CancellationToken cancellationToken = default);
     Task AddAsync(JobOffer entity, CancellationToken cancellationToken = default);
     void Update(JobOffer entity);
     void Remove(JobOffer entity);

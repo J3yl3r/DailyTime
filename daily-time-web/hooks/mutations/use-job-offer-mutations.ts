@@ -5,6 +5,7 @@ import {
   bulkDeleteJobOffers,
   bulkUpdateJobOfferStatus,
   deleteJobOffer,
+  reorderJobOffers,
   updateJobOfferStatus,
 } from "@/lib/api/job-offers";
 import { jobApplicationKeys, jobOfferKeys } from "@/lib/query/keys";
@@ -37,6 +38,11 @@ export function useJobOfferMutations() {
     },
   });
 
+  const reorder = useMutation({
+    mutationFn: (ids: number[]) => reorderJobOffers(ids),
+    onSuccess: invalidateOffers,
+  });
+
   const remove = useMutation({
     mutationFn: (id: number) => deleteJobOffer(id),
     onSuccess: invalidateOffers,
@@ -47,5 +53,5 @@ export function useJobOfferMutations() {
     onSuccess: invalidateOffers,
   });
 
-  return { updateStatus, bulkUpdateStatus, remove, bulkRemove };
+  return { updateStatus, bulkUpdateStatus, reorder, remove, bulkRemove };
 }

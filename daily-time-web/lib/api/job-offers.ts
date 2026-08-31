@@ -4,14 +4,51 @@ import type { JobOffer, JobOfferFilters, JobOfferMeta } from "@/types/api";
 function buildQuery(filters?: JobOfferFilters) {
   const params = new URLSearchParams();
   if (!filters) return "";
-  if (filters.portalId != null) params.set("portalId", String(filters.portalId));
-  if (filters.status) params.set("status", filters.status);
+
+  if (filters.portalIds?.length) {
+    params.set("portalIdsCsv", filters.portalIds.join(","));
+  } else if (filters.portalId != null) {
+    params.set("portalId", String(filters.portalId));
+  }
+
+  if (filters.statuses?.length) {
+    params.set("statuses", filters.statuses.join(","));
+  } else if (filters.status) {
+    params.set("status", filters.status);
+  }
+
   if (filters.search) params.set("search", filters.search);
-  if (filters.country) params.set("country", filters.country);
-  if (filters.language) params.set("language", filters.language);
-  if (filters.workModality) params.set("workModality", filters.workModality);
-  if (filters.contractType) params.set("contractType", filters.contractType);
-  if (filters.techStack) params.set("techStack", filters.techStack);
+
+  if (filters.countries?.length) {
+    params.set("countries", filters.countries.join(","));
+  } else if (filters.country) {
+    params.set("country", filters.country);
+  }
+
+  if (filters.languages?.length) {
+    params.set("languages", filters.languages.join(","));
+  } else if (filters.language) {
+    params.set("language", filters.language);
+  }
+
+  if (filters.workModalities?.length) {
+    params.set("workModalities", filters.workModalities.join(","));
+  } else if (filters.workModality) {
+    params.set("workModality", filters.workModality);
+  }
+
+  if (filters.contractTypes?.length) {
+    params.set("contractTypes", filters.contractTypes.join(","));
+  } else if (filters.contractType) {
+    params.set("contractType", filters.contractType);
+  }
+
+  if (filters.techStacks?.length) {
+    params.set("techStacks", filters.techStacks.join(","));
+  } else if (filters.techStack) {
+    params.set("techStack", filters.techStack);
+  }
+
   if (filters.capturedFrom) params.set("capturedFrom", filters.capturedFrom);
   if (filters.capturedTo) params.set("capturedTo", filters.capturedTo);
   if (filters.postedFrom) params.set("postedFrom", filters.postedFrom);
@@ -48,3 +85,8 @@ export function bulkDeleteJobOffers(ids: number[]) {
     ids,
   });
 }
+
+export function reorderJobOffers(ids: number[]) {
+  return apiClient.put<object>("/api/job-offers/reorder", { ids });
+}
+

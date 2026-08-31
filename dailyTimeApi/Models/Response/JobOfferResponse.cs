@@ -19,6 +19,7 @@ public class JobOfferResponse
     public string? TechStack { get; set; }
     public DateTime? PostedAt { get; set; }
     public string Status { get; set; } = "new";
+    public int SortOrder { get; set; }
     public DateTime CapturedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

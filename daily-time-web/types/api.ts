@@ -284,19 +284,27 @@ export type JobOffer = {
   techStack: string | null;
   postedAt: string | null;
   status: JobOfferStatus | string;
+  sortOrder: number;
   capturedAt: string;
   updatedAt: string;
 };
 
 export type JobOfferFilters = {
   portalId?: number;
+  portalIds?: number[];
   status?: string;
+  statuses?: string[];
   search?: string;
   country?: string;
+  countries?: string[];
   language?: string;
+  languages?: string[];
   workModality?: string;
+  workModalities?: string[];
   contractType?: string;
+  contractTypes?: string[];
   techStack?: string;
+  techStacks?: string[];
   capturedFrom?: string;
   capturedTo?: string;
   postedFrom?: string;

@@ -22,6 +22,7 @@ public class JobOffer
     public DateTime? PostedAt { get; set; }
     /// <summary>new | seen | discarded | applied</summary>
     public string Status { get; set; } = "new";
+    public int SortOrder { get; set; }
     public DateTime CapturedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 
