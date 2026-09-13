@@ -23,9 +23,10 @@ public class JobPortalService : IJobPortalService
     public async Task<IReadOnlyList<JobPortalResponse>> GetAllAsync(
         bool? onlyActive = null,
         bool queuedOnly = false,
+        bool autoOnly = false,
         CancellationToken cancellationToken = default)
     {
-        var items = await _repository.GetAllAsync(onlyActive, queuedOnly, cancellationToken);
+        var items = await _repository.GetAllAsync(onlyActive, queuedOnly, autoOnly, cancellationToken);
         return items.Select(Map).ToList();
     }
 
@@ -33,6 +34,21 @@ public class JobPortalService : IJobPortalService
         int id, CancellationToken cancellationToken = default) =>
         Map(await _repository.GetByIdAsync(id, cancellationToken)
             ?? throw new NotFoundException($"Portal {id} no encontrado."));
+
+    public async Task<JobPortalResponse> SetAutoScrapeAsync(
+        int id, bool enabled, CancellationToken cancellationToken = default)
+    {
+        var entity = await _repository.GetByIdAsync(id, cancellationToken)
+            ?? throw new NotFoundException($"Portal {id} no encontrado.");
+        if (enabled && !entity.IsActive)
+            throw new ValidationException("Activa el portal antes de incluirlo en la ejecución automática.");
+
+        entity.AutoScrapeEnabled = enabled;
+        entity.UpdatedAt = DateTime.UtcNow;
+        _repository.Update(entity);
+        await _repository.SaveChangesAsync(cancellationToken);
+        return Map(entity);
+    }
 
     public async Task<JobPortalResponse> CreateAsync(
         CreateJobPortalRequest request, CancellationToken cancellationToken = default)
@@ -229,6 +245,7 @@ public class JobPortalService : IJobPortalService
         Notes = entity.Notes,
         ScrapeConfig = entity.ScrapeConfig,
         IsActive = entity.IsActive,
+        AutoScrapeEnabled = entity.AutoScrapeEnabled,
         LastRunAt = entity.LastRunAt,
         LastRunStatus = entity.LastRunStatus,
         CreatedAt = entity.CreatedAt,

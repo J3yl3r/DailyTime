@@ -4,7 +4,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -18,22 +17,15 @@ import {
   WorkerRequestAbortedError,
   type WorkerScrapeResult,
 } from "@/lib/api/worker";
-import { jobOfferKeys, jobPortalKeys } from "@/lib/query/keys";
+import { jobOfferKeys, jobPortalKeys, scrapeScheduleKeys } from "@/lib/query/keys";
 import { useAppNotifications } from "@/providers/app-notifications-provider";
 import type { JobPortal } from "@/types/api";
 
-const STORAGE_AUTO_KEY = "dailytime.scrape.autoEnabled";
-const STORAGE_INTERVAL_KEY = "dailytime.scrape.intervalMinutes";
-const STORAGE_AUTO_PORTALS_KEY = "dailytime.scrape.autoPortalIds";
-const STORAGE_NEXT_KEY = "dailytime.scrape.nextAutoAt";
-
-/** Default prudente (antes era 10). */
-export const DEFAULT_INTERVAL_MINUTES = 60;
-export const MIN_INTERVAL_MINUTES = 10;
-export const MAX_INTERVAL_MINUTES = 360;
-
-/** Origen de una corrida secuencial: manual = todos los activos, auto = programada, selected = solo los marcados. */
-export type ScrapeRunSource = "manual" | "auto" | "selected";
+/**
+ * Capturas manuales lanzadas desde la web. La ejecución automática ya no vive aquí:
+ * la programa el worker con el horario global guardado en la API.
+ */
+export type ScrapeRunSource = "manual" | "selected";
 
 const RUN_COPY: Record<
   ScrapeRunSource,
@@ -45,12 +37,6 @@ const RUN_COPY: Record<
     startTitle: "Captura de todos los portales",
     endTitle: "Captura secuencial terminada",
   },
-  auto: {
-    emptyTitle: "Sin portales en la automática",
-    emptyBody: "Marca al menos un portal para la ejecución automática.",
-    startTitle: "Captura automática iniciada",
-    endTitle: "Captura automática terminada",
-  },
   selected: {
     emptyTitle: "Sin portales marcados",
     emptyBody: "Marca al menos un portal con el check Automática.",
@@ -60,17 +46,8 @@ const RUN_COPY: Record<
 };
 
 type ScrapeSchedulerContextValue = {
-  autoEnabled: boolean;
-  setAutoEnabled: (value: boolean) => void;
-  intervalMinutes: number;
-  setIntervalMinutes: (minutes: number) => void;
-  autoPortalIds: number[];
-  setAutoPortalIds: (ids: number[]) => void;
-  toggleAutoPortal: (id: number) => void;
   isRunningAll: boolean;
   currentPortalId: number | null;
-  lastAutoAt: string | null;
-  nextAutoAt: string | null;
   runAllSequential: (opts?: { source?: ScrapeRunSource }) => Promise<void>;
   runOne: (portalId: number, portalName?: string) => Promise<WorkerScrapeResult | null>;
   stop: () => Promise<void>;
@@ -78,82 +55,14 @@ type ScrapeSchedulerContextValue = {
 
 const ScrapeSchedulerContext = createContext<ScrapeSchedulerContextValue | null>(null);
 
-function clampIntervalMinutes(value: number): number {
-  if (!Number.isFinite(value)) return DEFAULT_INTERVAL_MINUTES;
-  return Math.min(
-    MAX_INTERVAL_MINUTES,
-    Math.max(MIN_INTERVAL_MINUTES, Math.round(value)),
-  );
-}
-
-function readAutoEnabled(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    return window.localStorage.getItem(STORAGE_AUTO_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-function readIntervalMinutes(): number {
-  if (typeof window === "undefined") return DEFAULT_INTERVAL_MINUTES;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_INTERVAL_KEY);
-    if (!raw) return DEFAULT_INTERVAL_MINUTES;
-    return clampIntervalMinutes(Number(raw));
-  } catch {
-    return DEFAULT_INTERVAL_MINUTES;
-  }
-}
-
-function readAutoPortalIds(): number[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(STORAGE_AUTO_PORTALS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((id): id is number => Number.isInteger(id) && id > 0);
-  } catch {
-    return [];
-  }
-}
-
 export function ScrapeSchedulerProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const { notify } = useAppNotifications();
-  const [autoEnabled, setAutoEnabledState] = useState(false);
-  const [intervalMinutes, setIntervalMinutesState] = useState(DEFAULT_INTERVAL_MINUTES);
-  const [autoPortalIds, setAutoPortalIdsState] = useState<number[]>([]);
-  const [ready, setReady] = useState(false);
   const [isRunningAll, setIsRunningAll] = useState(false);
   const [currentPortalId, setCurrentPortalId] = useState<number | null>(null);
-  const [lastAutoAt, setLastAutoAt] = useState<string | null>(null);
-  const [nextAutoAt, setNextAutoAt] = useState<string | null>(null);
   const runningRef = useRef(false);
   const stopRequestedRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
-  const nextDueMsRef = useRef<number | null>(null);
-  const intervalMinutesRef = useRef(DEFAULT_INTERVAL_MINUTES);
-  const runAllSequentialRef = useRef<(opts?: { source?: ScrapeRunSource }) => Promise<void>>(
-    async () => {},
-  );
-
-  const persistNextDue = useCallback((dueMs: number | null) => {
-    nextDueMsRef.current = dueMs;
-    setNextAutoAt(dueMs != null ? new Date(dueMs).toISOString() : null);
-    try {
-      if (dueMs == null) window.localStorage.removeItem(STORAGE_NEXT_KEY);
-      else window.localStorage.setItem(STORAGE_NEXT_KEY, String(dueMs));
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  const scheduleFromNow = useCallback(() => {
-    const ms = clampIntervalMinutes(intervalMinutesRef.current) * 60 * 1000;
-    persistNextDue(Date.now() + ms);
-  }, [persistNextDue]);
 
   const patchPortal = useCallback(
     (portalId: number, patch: Partial<JobPortal>) => {
@@ -180,91 +89,6 @@ export function ScrapeSchedulerProvider({ children }: { children: ReactNode }) {
       }
     },
     [patchPortal],
-  );
-
-  useEffect(() => {
-    const enabled = readAutoEnabled();
-    const minutes = readIntervalMinutes();
-    setAutoEnabledState(enabled);
-    setIntervalMinutesState(minutes);
-    intervalMinutesRef.current = minutes;
-    setAutoPortalIdsState(readAutoPortalIds());
-    if (enabled) {
-      try {
-        const stored = Number(window.localStorage.getItem(STORAGE_NEXT_KEY));
-        if (Number.isFinite(stored) && stored > Date.now()) {
-          persistNextDue(stored);
-        } else {
-          persistNextDue(Date.now() + minutes * 60 * 1000);
-        }
-      } catch {
-        persistNextDue(Date.now() + minutes * 60 * 1000);
-      }
-    }
-    setReady(true);
-  }, [persistNextDue]);
-
-  const setAutoEnabled = useCallback(
-    (value: boolean) => {
-      setAutoEnabledState(value);
-      try {
-        window.localStorage.setItem(STORAGE_AUTO_KEY, value ? "1" : "0");
-      } catch {
-        /* ignore */
-      }
-      if (value) scheduleFromNow();
-      else persistNextDue(null);
-    },
-    [persistNextDue, scheduleFromNow],
-  );
-
-  const setIntervalMinutes = useCallback(
-    (minutes: number) => {
-      const next = clampIntervalMinutes(minutes);
-      if (next === intervalMinutesRef.current) return;
-      intervalMinutesRef.current = next;
-      setIntervalMinutesState(next);
-      try {
-        window.localStorage.setItem(STORAGE_INTERVAL_KEY, String(next));
-      } catch {
-        /* ignore */
-      }
-      if (autoEnabled) scheduleFromNow();
-    },
-    [autoEnabled, scheduleFromNow],
-  );
-
-  const persistAutoPortalIds = useCallback((ids: number[]) => {
-    const next = [...new Set(ids)].sort((a, b) => a - b);
-    setAutoPortalIdsState(next);
-    try {
-      window.localStorage.setItem(STORAGE_AUTO_PORTALS_KEY, JSON.stringify(next));
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  const setAutoPortalIds = useCallback(
-    (ids: number[]) => persistAutoPortalIds(ids),
-    [persistAutoPortalIds],
-  );
-
-  const toggleAutoPortal = useCallback(
-    (id: number) => {
-      setAutoPortalIdsState((current) => {
-        const next = current.includes(id)
-          ? current.filter((item) => item !== id)
-          : [...current, id];
-        const unique = [...new Set(next)].sort((a, b) => a - b);
-        try {
-          window.localStorage.setItem(STORAGE_AUTO_PORTALS_KEY, JSON.stringify(unique));
-        } catch {
-          /* ignore */
-        }
-        return unique;
-      });
-    },
-    [],
   );
 
   const runOne = useCallback(
@@ -343,8 +167,12 @@ export function ScrapeSchedulerProvider({ children }: { children: ReactNode }) {
         body: error instanceof Error ? error.message : "Revisa que el worker esté en :5500.",
         tone: "error",
       });
+    } finally {
+      // Puede haber detenido una captura programada: refresca su estado.
+      void queryClient.invalidateQueries({ queryKey: scrapeScheduleKeys.all });
+      void queryClient.invalidateQueries({ queryKey: jobPortalKeys.all });
     }
-  }, [notify]);
+  }, [notify, queryClient]);
 
   const runAllSequential = useCallback(
     async (opts?: { source?: ScrapeRunSource }) => {
@@ -366,9 +194,7 @@ export function ScrapeSchedulerProvider({ children }: { children: ReactNode }) {
       try {
         const active = (await getJobPortals(true)).filter((p) => p.isActive);
         const portals =
-          source === "manual"
-            ? active
-            : active.filter((p) => autoPortalIds.includes(p.id));
+          source === "manual" ? active : active.filter((p) => p.autoScrapeEnabled);
         if (!portals.length) {
           notify({
             title: copy.emptyTitle,
@@ -437,69 +263,30 @@ export function ScrapeSchedulerProvider({ children }: { children: ReactNode }) {
             tone: failed > 0 && ok === 0 ? "error" : "success",
           });
         }
-
-        if (source === "auto") {
-          setLastAutoAt(new Date().toISOString());
-        }
+      } catch (error) {
+        notify({
+          title: "No se pudo iniciar la captura",
+          body: error instanceof Error ? error.message : "Revisa que la API esté activa.",
+          tone: "error",
+        });
       } finally {
         runningRef.current = false;
         setIsRunningAll(false);
         setCurrentPortalId(null);
-        if (source === "auto") scheduleFromNow();
       }
     },
-    [notify, runOne, autoPortalIds, scheduleFromNow],
+    [notify, runOne],
   );
-
-  runAllSequentialRef.current = runAllSequential;
-  intervalMinutesRef.current = intervalMinutes;
-
-  useEffect(() => {
-    if (!ready || !autoEnabled) return;
-
-    const id = window.setInterval(() => {
-      const due = nextDueMsRef.current;
-      if (due == null || Date.now() < due) return;
-      if (runningRef.current) return;
-      void runAllSequentialRef.current({ source: "auto" });
-    }, 1000);
-
-    return () => window.clearInterval(id);
-  }, [ready, autoEnabled]);
 
   const value = useMemo<ScrapeSchedulerContextValue>(
     () => ({
-      autoEnabled,
-      setAutoEnabled,
-      intervalMinutes,
-      setIntervalMinutes,
-      autoPortalIds,
-      setAutoPortalIds,
-      toggleAutoPortal,
       isRunningAll,
       currentPortalId,
-      lastAutoAt,
-      nextAutoAt,
       runAllSequential,
       runOne,
       stop,
     }),
-    [
-      autoEnabled,
-      setAutoEnabled,
-      intervalMinutes,
-      setIntervalMinutes,
-      autoPortalIds,
-      setAutoPortalIds,
-      toggleAutoPortal,
-      isRunningAll,
-      currentPortalId,
-      lastAutoAt,
-      nextAutoAt,
-      runAllSequential,
-      runOne,
-      stop,
-    ],
+    [isRunningAll, currentPortalId, runAllSequential, runOne, stop],
   );
 
   return (

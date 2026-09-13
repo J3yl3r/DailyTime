@@ -66,6 +66,13 @@ export function stopScrapes() {
   });
 }
 
+/** Pide al worker recalcular la próxima captura tras guardar el horario. */
+export function reloadWorkerSchedule() {
+  return workerRequest<{ message: string }>("/api/schedule/reload", {
+    method: "POST",
+  });
+}
+
 export function openChromeDebug() {
   return workerRequest<{ started: boolean; message: string }>("/api/chrome/debug", {
     method: "POST",

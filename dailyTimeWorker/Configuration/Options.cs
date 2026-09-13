@@ -10,7 +10,10 @@ public class DailyTimeApiOptions
 public class WorkerOptions
 {
     public const string SectionName = "Worker";
-    public int PollIntervalSeconds { get; set; } = 20;
+    /// <summary>
+    /// Interruptor general de la captura programada. Las horas y los portales se configuran
+    /// desde la web (horario global en la API); con false el worker solo atiende capturas manuales.
+    /// </summary>
     public bool EnableAutoScrape { get; set; } = true;
     public bool UsePlaywright { get; set; } = true;
     public bool Headless { get; set; } = true;

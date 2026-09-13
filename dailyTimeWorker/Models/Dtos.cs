@@ -17,8 +17,33 @@ public class JobPortalDto
     public string? Notes { get; set; }
     public string? ScrapeConfig { get; set; }
     public bool IsActive { get; set; }
+    public bool AutoScrapeEnabled { get; set; }
     public DateTime? LastRunAt { get; set; }
     public string? LastRunStatus { get; set; }
+}
+
+/// <summary>Horario global de captura (calculado por la API; todas las fechas en UTC).</summary>
+public class ScrapeScheduleDto
+{
+    public bool Enabled { get; set; }
+    public List<string> Times { get; set; } = [];
+    public List<int> Days { get; set; } = [];
+    public string TimeZoneId { get; set; } = string.Empty;
+    public DateTime? LastSlotAt { get; set; }
+    public string? LastSlotStatus { get; set; }
+    /// <summary>Próxima franja. Si ya pasó (dentro de la tolerancia), toca ejecutarla ya.</summary>
+    public DateTime? NextSlotAt { get; set; }
+    /// <summary>Franja perdida que falta registrar como omitida.</summary>
+    public DateTime? MissedSlotAt { get; set; }
+}
+
+public class MarkScrapeSlotRequest
+{
+    public DateTime SlotAt { get; set; }
+    /// <summary>running | completed | failed | cancelled | skipped</summary>
+    public string Status { get; set; } = string.Empty;
+    public string? Message { get; set; }
+    public DateTime? FinishedAt { get; set; }
 }
 
 public class UpdateScrapeRunRequest

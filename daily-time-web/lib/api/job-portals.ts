@@ -37,6 +37,10 @@ export function deleteJobPortal(id: number) {
   return apiClient.delete<object>(`/api/job-portals/${id}`);
 }
 
+export function setJobPortalAutoScrape(id: number, enabled: boolean) {
+  return apiClient.put<JobPortal>(`/api/job-portals/${id}/auto-scrape`, { enabled });
+}
+
 export function queueJobPortalScrape(id: number) {
   return apiClient.post<JobPortal>(`/api/job-portals/${id}/scrape`, {});
 }

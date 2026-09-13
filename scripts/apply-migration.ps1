@@ -1,6 +1,15 @@
-$sqlScript = (Get-Content -Raw "$PSScriptRoot/add-job-offer-sort-order.sql").Replace("`r`nGO", "").Replace("`nGO", "")
+# Uso: .\apply-migration.ps1 -Script add-scrape-schedule.sql
+param(
+    [string]$Script = "add-job-offer-sort-order.sql"
+)
 
-Write-Host "Verificando conexiones a base de datos..."
+$scriptPath = Join-Path $PSScriptRoot $Script
+if (-not (Test-Path $scriptPath)) {
+    throw "No existe el script de migración: $scriptPath"
+}
+$sqlScript = (Get-Content -Raw $scriptPath).Replace("`r`nGO", "").Replace("`nGO", "")
+
+Write-Host "Aplicando $Script. Verificando conexiones a base de datos..."
 
 # Check Docker container
 try {

@@ -245,10 +245,33 @@ export type JobPortal = {
   notes: string | null;
   scrapeConfig: string | null;
   isActive: boolean;
+  /** Incluido en la captura automática del horario global. */
+  autoScrapeEnabled: boolean;
   lastRunAt: string | null;
   lastRunStatus: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type ScrapeSlotStatus = "running" | "completed" | "failed" | "cancelled" | "skipped";
+
+/** Horario global de captura: mismas horas para todos los portales marcados (fechas en UTC). */
+export type ScrapeSchedule = {
+  enabled: boolean;
+  /** Horas locales "HH:mm" ordenadas. */
+  times: string[];
+  /** Días ISO (1 = lunes … 7 = domingo). Vacío = todos los días. */
+  days: number[];
+  timeZoneId: string;
+  configUpdatedAt: string;
+  lastSlotAt: string | null;
+  lastSlotStatus: ScrapeSlotStatus | null;
+  lastSlotMessage: string | null;
+  lastSlotFinishedAt: string | null;
+  nextSlotAt: string | null;
+  missedSlotAt: string | null;
+  lateToleranceMinutes: number;
+  serverUtc: string;
 };
 
 export type JobPortalScrapeLog = {

@@ -17,6 +17,7 @@ public class JobPortalRepository : IJobPortalRepository
     public async Task<IReadOnlyList<JobPortal>> GetAllAsync(
         bool? onlyActive = null,
         bool queuedOnly = false,
+        bool autoOnly = false,
         CancellationToken cancellationToken = default)
     {
         var query = _context.JobPortals.AsNoTracking().AsQueryable();
@@ -24,6 +25,8 @@ public class JobPortalRepository : IJobPortalRepository
             query = query.Where(x => x.IsActive);
         if (queuedOnly)
             query = query.Where(x => x.IsActive && x.LastRunStatus == "queued_playwright");
+        if (autoOnly)
+            query = query.Where(x => x.IsActive && x.AutoScrapeEnabled);
         return await query.OrderBy(x => x.Name).ToListAsync(cancellationToken);
     }
 

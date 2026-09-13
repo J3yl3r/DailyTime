@@ -8,8 +8,10 @@ public interface IJobPortalService
     Task<IReadOnlyList<JobPortalResponse>> GetAllAsync(
         bool? onlyActive = null,
         bool queuedOnly = false,
+        bool autoOnly = false,
         CancellationToken cancellationToken = default);
     Task<JobPortalResponse> GetByIdAsync(int id, CancellationToken cancellationToken = default);
+    Task<JobPortalResponse> SetAutoScrapeAsync(int id, bool enabled, CancellationToken cancellationToken = default);
     Task<JobPortalResponse> CreateAsync(CreateJobPortalRequest request, CancellationToken cancellationToken = default);
     Task<JobPortalResponse> UpdateAsync(int id, UpdateJobPortalRequest request, CancellationToken cancellationToken = default);
     Task DeleteAsync(int id, CancellationToken cancellationToken = default);

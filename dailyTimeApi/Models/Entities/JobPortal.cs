@@ -13,6 +13,8 @@ public class JobPortal
     /// <summary>JSON con selectores / parámetros de scraping para Playwright.</summary>
     public string? ScrapeConfig { get; set; }
     public bool IsActive { get; set; } = true;
+    /// <summary>Se incluye en la captura automática del horario global (<see cref="ScrapeSchedule"/>).</summary>
+    public bool AutoScrapeEnabled { get; set; }
     public DateTime? LastRunAt { get; set; }
     public string? LastRunStatus { get; set; }
     public DateTime CreatedAt { get; set; }

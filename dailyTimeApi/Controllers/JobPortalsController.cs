@@ -18,11 +18,12 @@ public class JobPortalsController : ControllerBase
     public async Task<ActionResult<ApiResponse<IReadOnlyList<JobPortalResponse>>>> GetAll(
         [FromQuery] bool? onlyActive,
         [FromQuery] bool queuedOnly = false,
+        [FromQuery] bool autoOnly = false,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            var items = await _service.GetAllAsync(onlyActive, queuedOnly, cancellationToken);
+            var items = await _service.GetAllAsync(onlyActive, queuedOnly, autoOnly, cancellationToken);
             return Ok(ApiResponse<IReadOnlyList<JobPortalResponse>>.Ok(items));
         }
         catch (Exception ex) { return HandleError(ex); }
@@ -73,6 +74,23 @@ public class JobPortalsController : ControllerBase
         {
             await _service.DeleteAsync(id, cancellationToken);
             return Ok(ApiResponse<object>.Ok(null!, "Portal eliminado."));
+        }
+        catch (Exception ex) { return HandleError(ex); }
+    }
+
+    /// <summary>Incluye o excluye el portal de la captura automática del horario global.</summary>
+    [HttpPut("{id:int}/auto-scrape")]
+    public async Task<ActionResult<ApiResponse<JobPortalResponse>>> SetAutoScrape(
+        int id, [FromBody] SetJobPortalAutoScrapeRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var item = await _service.SetAutoScrapeAsync(id, request.Enabled, cancellationToken);
+            return Ok(ApiResponse<JobPortalResponse>.Ok(
+                item,
+                item.AutoScrapeEnabled
+                    ? "Portal incluido en la ejecución automática."
+                    : "Portal excluido de la ejecución automática."));
         }
         catch (Exception ex) { return HandleError(ex); }
     }

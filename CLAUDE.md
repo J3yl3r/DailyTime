@@ -88,7 +88,7 @@ Config vía `IConfiguration`, no hardcodeada: `ConnectionStrings:DefaultConnecti
 
 ## Arquitectura de `dailyTimeWorker`
 
-`ScrapeConfig` por portal (selectores CSS flexibles: `listSelectors`, `titleSelectors`, `linkSelectors`, `companySelectors`, `locationSelectors`, `waitForSelector`, `maxItems`, `scrollTimes`) permite adaptar el scraper a un portal nuevo (Indeed/LinkedIn/elempleo) editando solo JSON, sin tocar código, cuando cambie el HTML del portal. Flujo actual es manual: la web dispara `POST /api/jobs/scrape/{id}`, el worker scrapea con Playwright y hace upsert de `JobOffer` en la BD de la API principal. `EnableAutoScrape` está en `false` (sin cron todavía).
+`ScrapeConfig` por portal (selectores CSS flexibles: `listSelectors`, `titleSelectors`, `linkSelectors`, `companySelectors`, `locationSelectors`, `waitForSelector`, `maxItems`, `scrollTimes`) permite adaptar el scraper a un portal nuevo (Indeed/LinkedIn/elempleo) editando solo JSON, sin tocar código, cuando cambie el HTML del portal. Captura manual: la web dispara `POST /api/jobs/scrape/{id}`, el worker scrapea con Playwright y hace upsert de `JobOffer` en la BD de la API principal. Captura programada: horario global en la API (`ScrapeSchedule`, mismas horas para todos los portales con `JobPortal.AutoScrapeEnabled`); `PortalScrapeBackgroundService` no sondea, espera con un temporizador de Windows de hora absoluta (despierta el equipo) y se recarga con `POST /api/schedule/reload`. Las horas perdidas se omiten (`skipped`). Detalle en [dailyTimeWorker/README.md](dailyTimeWorker/README.md).
 
 ## Arquitectura de `daily-time-web`
 

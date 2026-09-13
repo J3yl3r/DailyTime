@@ -8,6 +8,7 @@ public interface IJobPortalRepository
     Task<IReadOnlyList<JobPortal>> GetAllAsync(
         bool? onlyActive = null,
         bool queuedOnly = false,
+        bool autoOnly = false,
         CancellationToken cancellationToken = default);
     Task<bool> ExistsByNameAsync(string name, int? excludeId = null, CancellationToken cancellationToken = default);
     Task AddAsync(JobPortal entity, CancellationToken cancellationToken = default);

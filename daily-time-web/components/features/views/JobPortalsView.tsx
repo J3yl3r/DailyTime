@@ -1,19 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import { History, Pencil, Play, Square, Trash2, Layers, ListChecks, Timer, Globe } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { History, Pencil, Play, Square, Trash2, Layers, ListChecks, Globe } from "lucide-react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import type { JobPortal, JobPortalScrapeLog } from "@/types/api";
 import { useJobPortals } from "@/hooks/queries/use-job-portals";
+import { useScrapeSchedule } from "@/hooks/queries/use-scrape-schedule";
 import { useJobPortalMutations } from "@/hooks/mutations/use-job-portal-mutations";
 import { getJobPortalScrapeLogs } from "@/lib/api/job-portals";
 import { openChromeDebug } from "@/lib/api/worker";
+import { jobOfferKeys, jobPortalKeys } from "@/lib/query/keys";
 import { CreatePanel } from "@/components/ui/CreatePanel";
 import { FormModal } from "@/components/shared/form-modal";
+import { ScrapeScheduleCard } from "@/components/features/job-portals/ScrapeScheduleCard";
 import { useConfirm } from "@/providers/confirm-provider";
-import { useScrapeScheduler, MIN_INTERVAL_MINUTES, MAX_INTERVAL_MINUTES } from "@/providers/scrape-scheduler-provider";
+import { useScrapeScheduler } from "@/providers/scrape-scheduler-provider";
 import { useAppNotifications } from "@/providers/app-notifications-provider";
-import { cn } from "@/lib/utils/cn";
 
 const inputClass =
   "rounded-md border border-[var(--border)] bg-white px-3 py-2 font-normal outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]";
@@ -317,13 +320,33 @@ export function JobPortalsView() {
   const mutations = useJobPortalMutations();
   const confirm = useConfirm();
   const scrape = useScrapeScheduler();
+  const schedule = useScrapeSchedule();
+  const queryClient = useQueryClient();
   const { notify } = useAppNotifications();
   const items = [...(query.data ?? [])].sort((a, b) => a.id - b.id);
-  const busy = scrape.isRunningAll || scrape.currentPortalId != null;
-  const autoCount = scrape.autoPortalIds.filter((id) =>
-    items.some((item) => item.id === id && item.isActive),
-  ).length;
+  const scheduleRunning = schedule.data?.lastSlotStatus === "running";
+  const busy = scrape.isRunningAll || scrape.currentPortalId != null || scheduleRunning;
+  const autoCount = items.filter((item) => item.isActive && item.autoScrapeEnabled).length;
   const [runningSelected, setRunningSelected] = useState(false);
+
+  // Mientras el worker ejecuta una captura programada, refresca el estado de los portales;
+  // al terminar, también las ofertas.
+  const wasScheduleRunningRef = useRef(false);
+  useEffect(() => {
+    if (!schedule.dataUpdatedAt) return;
+    if (scheduleRunning || wasScheduleRunningRef.current) {
+      void queryClient.invalidateQueries({ queryKey: jobPortalKeys.all });
+      if (!scheduleRunning) void queryClient.invalidateQueries({ queryKey: jobOfferKeys.all });
+    }
+    wasScheduleRunningRef.current = scheduleRunning;
+  }, [schedule.dataUpdatedAt, scheduleRunning, queryClient]);
+
+  const toggleAutoScrape = (item: JobPortal, enabled: boolean) => {
+    mutations.setAutoScrape.mutate(
+      { id: item.id, enabled },
+      { onError: (error) => toast.error(error.message) },
+    );
+  };
 
   const captureSelected = async () => {
     setRunningSelected(true);
@@ -412,9 +435,9 @@ export function JobPortalsView() {
     <div className="mx-auto flex max-w-4xl flex-col gap-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <p className="text-sm text-[var(--muted)]">
-          Captura individual o todos en secuencia. La automática corre cada{" "}
-          {scrape.intervalMinutes} minutos mientras esta pestaña esté abierta
-          (notificaciones en la campana).
+          Captura individual o en secuencia (notificaciones en la campana). La
+          ejecución automática la hace el worker a las horas del horario, aunque
+          la web esté cerrada.
         </p>
         <CreatePanel
           open={creating}
@@ -477,7 +500,7 @@ export function JobPortalsView() {
               ? "Capturando marcados…"
               : `Capturar marcados (${autoCount})`}
           </button>
-          {busy ? (
+          {busy && !scheduleRunning ? (
             <button
               type="button"
               onClick={() => void scrape.stop()}
@@ -487,51 +510,22 @@ export function JobPortalsView() {
               Detener
             </button>
           ) : null}
-          <label
-            className={cn(
-              "inline-flex cursor-pointer items-center gap-2 rounded-md border border-[var(--border)] px-3 py-2 text-sm",
-              scrape.autoEnabled
-                ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)]"
-                : "text-[var(--muted)]",
-            )}
-          >
-            <Timer className="size-4" />
-            <span>Ejecución automática</span>
-            <input
-              type="checkbox"
-              className="size-4 accent-[var(--accent)]"
-              checked={scrape.autoEnabled}
-              onChange={(e) => scrape.setAutoEnabled(e.target.checked)}
-            />
-          </label>
-          <label className="inline-flex items-center gap-2 rounded-md border border-[var(--border)] px-3 py-2 text-sm text-[var(--ink)]">
-            <span className="text-[var(--muted)]">Cada</span>
-            <input
-              type="number"
-              min={MIN_INTERVAL_MINUTES}
-              max={MAX_INTERVAL_MINUTES}
-              step={5}
-              value={scrape.intervalMinutes}
-              onChange={(e) => scrape.setIntervalMinutes(Number(e.target.value))}
-              className="w-16 rounded-md border border-[var(--border)] bg-white px-2 py-1 text-sm outline-none focus:border-[var(--accent)]"
-            />
-            <span className="text-[var(--muted)]">min</span>
-          </label>
         </div>
         <p className="text-xs text-[var(--muted)]">
           «Capturar marcados» ejecuta ahora mismo, en secuencia, solo los portales con
-          el check Automática, sin encender la ejecución automática ni programar la
-          siguiente corrida.
-          {" "}
-          Intervalo permitido: {MIN_INTERVAL_MINUTES}–{MAX_INTERVAL_MINUTES} min (recomendado 60).
-          {scrape.autoEnabled
-            ? ` Automática activa (${autoCount} portal${autoCount === 1 ? "" : "es"}).${scrape.nextAutoAt ? ` Próxima: ${new Date(scrape.nextAutoAt).toLocaleTimeString()}.` : ""}${scrape.lastAutoAt ? ` Última: ${new Date(scrape.lastAutoAt).toLocaleString()}.` : ""}`
-            : " Automática desactivada. Marca Automática en cada portal que quieras incluir."}
+          el check Automática, sin esperar a la próxima hora del horario.
+          {scheduleRunning ? " · Hay una captura programada en curso." : ""}
           {scrape.currentPortalId
             ? ` · Ejecutando portal #${scrape.currentPortalId}…`
             : ""}
         </p>
       </div>
+
+      <ScrapeScheduleCard
+        schedule={schedule.data}
+        portals={items}
+        onStop={() => void scrape.stop()}
+      />
 
       {query.isLoading && <p className="text-sm text-[var(--muted)]">Cargando…</p>}
       {query.error && (
@@ -568,16 +562,16 @@ export function JobPortalsView() {
                     <input
                       type="checkbox"
                       className="size-3.5 accent-[var(--accent)]"
-                      checked={scrape.autoPortalIds.includes(item.id)}
-                      disabled={!item.isActive}
-                      onChange={() => scrape.toggleAutoPortal(item.id)}
+                      checked={item.autoScrapeEnabled}
+                      disabled={!item.isActive || mutations.setAutoScrape.isPending}
+                      onChange={(e) => toggleAutoScrape(item, e.target.checked)}
                     />
                     Automática
                   </label>
                   <button
                     type="button"
                     onClick={() => void capture(item)}
-                    disabled={!item.isActive || scrape.isRunningAll || scrape.currentPortalId === item.id}
+                    disabled={!item.isActive || scrape.isRunningAll || scheduleRunning || scrape.currentPortalId === item.id}
                     className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-[var(--muted)] hover:bg-[var(--surface-muted)] disabled:opacity-50"
                   >
                     <Play className="size-3.5" />

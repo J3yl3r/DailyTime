@@ -9,6 +9,7 @@ public class JobPortalResponse
     public string? Notes { get; set; }
     public string? ScrapeConfig { get; set; }
     public bool IsActive { get; set; }
+    public bool AutoScrapeEnabled { get; set; }
     public DateTime? LastRunAt { get; set; }
     public string? LastRunStatus { get; set; }
     public DateTime CreatedAt { get; set; }

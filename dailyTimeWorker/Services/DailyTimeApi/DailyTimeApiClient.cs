@@ -7,7 +7,11 @@ namespace dailyTimeWorker.Services.DailyTimeApi;
 public interface IDailyTimeApiClient
 {
     Task<IReadOnlyList<JobPortalDto>> GetQueuedPortalsAsync(CancellationToken cancellationToken = default);
+    /// <summary>Portales activos marcados como Automática.</summary>
+    Task<IReadOnlyList<JobPortalDto>> GetAutoPortalsAsync(CancellationToken cancellationToken = default);
     Task<JobPortalDto?> GetPortalAsync(int id, CancellationToken cancellationToken = default);
+    Task<ScrapeScheduleDto> GetScheduleAsync(CancellationToken cancellationToken = default);
+    Task MarkScheduleSlotAsync(MarkScrapeSlotRequest request, CancellationToken cancellationToken = default);
     Task UpdateScrapeRunAsync(int id, UpdateScrapeRunRequest request, CancellationToken cancellationToken = default);
     Task<UpsertJobOffersResponse> UpsertOffersAsync(
         UpsertJobOffersRequest request, CancellationToken cancellationToken = default);
@@ -37,6 +41,39 @@ public class DailyTimeApiClient : IDailyTimeApiClient
         var payload = await response.Content.ReadFromJsonAsync<ApiResponse<List<JobPortalDto>>>(
             JsonOptions, cancellationToken);
         return payload?.Data ?? [];
+    }
+
+    public async Task<IReadOnlyList<JobPortalDto>> GetAutoPortalsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _http.GetAsync("api/job-portals?autoOnly=true", cancellationToken);
+        response.EnsureSuccessStatusCode();
+        var payload = await response.Content.ReadFromJsonAsync<ApiResponse<List<JobPortalDto>>>(
+            JsonOptions, cancellationToken);
+        return payload?.Data ?? [];
+    }
+
+    public async Task<ScrapeScheduleDto> GetScheduleAsync(CancellationToken cancellationToken = default)
+    {
+        var response = await _http.GetAsync("api/scrape-schedule", cancellationToken);
+        response.EnsureSuccessStatusCode();
+        var payload = await response.Content.ReadFromJsonAsync<ApiResponse<ScrapeScheduleDto>>(
+            JsonOptions, cancellationToken);
+        return payload?.Data
+            ?? throw new InvalidOperationException("La API no devolvió el horario de captura.");
+    }
+
+    public async Task MarkScheduleSlotAsync(
+        MarkScrapeSlotRequest request, CancellationToken cancellationToken = default)
+    {
+        var response = await _http.PutAsJsonAsync("api/scrape-schedule/last-slot", request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogWarning("No se pudo registrar la franja {Slot} ({Status}): {Body}",
+                request.SlotAt, request.Status, body);
+            response.EnsureSuccessStatusCode();
+        }
     }
 
     public async Task<JobPortalDto?> GetPortalAsync(int id, CancellationToken cancellationToken = default)

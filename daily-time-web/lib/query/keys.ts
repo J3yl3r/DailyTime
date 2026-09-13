@@ -105,6 +105,11 @@ export const jobPortalKeys = {
   detail: (id: number) => [...jobPortalKeys.all, "detail", id] as const,
 };
 
+export const scrapeScheduleKeys = {
+  all: ["scrape-schedule"] as const,
+  current: () => [...scrapeScheduleKeys.all, "current"] as const,
+};
+
 export const careerProfileKeys = {
   all: ["career-profile"] as const,
   current: () => [...careerProfileKeys.all, "current"] as const,

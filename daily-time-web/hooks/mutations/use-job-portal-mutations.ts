@@ -5,6 +5,7 @@ import {
   createJobPortal,
   deleteJobPortal,
   queueJobPortalScrape,
+  setJobPortalAutoScrape,
   updateJobPortal,
 } from "@/lib/api/job-portals";
 import { jobPortalKeys } from "@/lib/query/keys";
@@ -33,6 +34,11 @@ export function useJobPortalMutations() {
     mutationFn: (id: number) => queueJobPortalScrape(id),
     onSuccess: invalidate,
   });
+  const setAutoScrape = useMutation({
+    mutationFn: ({ id, enabled }: { id: number; enabled: boolean }) =>
+      setJobPortalAutoScrape(id, enabled),
+    onSuccess: invalidate,
+  });
 
-  return { create, update, remove, queueScrape };
+  return { create, update, remove, queueScrape, setAutoScrape };
 }

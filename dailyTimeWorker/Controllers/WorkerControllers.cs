@@ -1,6 +1,7 @@
 using dailyTimeWorker.Models;
 using dailyTimeWorker.Services.Chrome;
 using dailyTimeWorker.Services.Notifications;
+using dailyTimeWorker.Services.Scheduling;
 using dailyTimeWorker.Services.Scraping;
 using Microsoft.AspNetCore.Mvc;
 
@@ -67,6 +68,14 @@ public class ScrapeJobsController : ControllerBase
     public async Task<ActionResult<ScrapeResult>> ProcessOne(
         int portalId, CancellationToken cancellationToken)
     {
+        if (_runs.RunningPortalIds.Count > 0)
+        {
+            return Conflict(new
+            {
+                message = "Ya hay una captura en curso (manual o programada). Espera a que termine o pulsa Detener."
+            });
+        }
+
         try
         {
             var result = await _scrape.ProcessPortalAsync(portalId, cancellationToken);
@@ -87,6 +96,23 @@ public class ScrapeJobsController : ControllerBase
         {
             return NotFound(new { message = ex.Message });
         }
+    }
+}
+
+[ApiController]
+[Route("api/schedule")]
+public class ScheduleController : ControllerBase
+{
+    private readonly IScrapeScheduleSignal _signal;
+
+    public ScheduleController(IScrapeScheduleSignal signal) => _signal = signal;
+
+    /// <summary>La web lo llama tras guardar el horario para que el worker recalcule la próxima hora.</summary>
+    [HttpPost("reload")]
+    public ActionResult<object> Reload()
+    {
+        _signal.Reload();
+        return Ok(new { message = "Horario recargado en el worker." });
     }
 }
 
