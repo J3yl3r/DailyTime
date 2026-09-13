@@ -32,6 +32,33 @@ export const DEFAULT_INTERVAL_MINUTES = 60;
 export const MIN_INTERVAL_MINUTES = 10;
 export const MAX_INTERVAL_MINUTES = 360;
 
+/** Origen de una corrida secuencial: manual = todos los activos, auto = programada, selected = solo los marcados. */
+export type ScrapeRunSource = "manual" | "auto" | "selected";
+
+const RUN_COPY: Record<
+  ScrapeRunSource,
+  { emptyTitle: string; emptyBody: string; startTitle: string; endTitle: string }
+> = {
+  manual: {
+    emptyTitle: "Sin portales activos",
+    emptyBody: "Activa al menos un portal para capturar.",
+    startTitle: "Captura de todos los portales",
+    endTitle: "Captura secuencial terminada",
+  },
+  auto: {
+    emptyTitle: "Sin portales en la automática",
+    emptyBody: "Marca al menos un portal para la ejecución automática.",
+    startTitle: "Captura automática iniciada",
+    endTitle: "Captura automática terminada",
+  },
+  selected: {
+    emptyTitle: "Sin portales marcados",
+    emptyBody: "Marca al menos un portal con el check Automática.",
+    startTitle: "Captura de portales marcados",
+    endTitle: "Captura de marcados terminada",
+  },
+};
+
 type ScrapeSchedulerContextValue = {
   autoEnabled: boolean;
   setAutoEnabled: (value: boolean) => void;
@@ -44,7 +71,7 @@ type ScrapeSchedulerContextValue = {
   currentPortalId: number | null;
   lastAutoAt: string | null;
   nextAutoAt: string | null;
-  runAllSequential: (opts?: { source?: "manual" | "auto" }) => Promise<void>;
+  runAllSequential: (opts?: { source?: ScrapeRunSource }) => Promise<void>;
   runOne: (portalId: number, portalName?: string) => Promise<WorkerScrapeResult | null>;
   stop: () => Promise<void>;
 };
@@ -108,7 +135,7 @@ export function ScrapeSchedulerProvider({ children }: { children: ReactNode }) {
   const abortRef = useRef<AbortController | null>(null);
   const nextDueMsRef = useRef<number | null>(null);
   const intervalMinutesRef = useRef(DEFAULT_INTERVAL_MINUTES);
-  const runAllSequentialRef = useRef<(opts?: { source?: "manual" | "auto" }) => Promise<void>>(
+  const runAllSequentialRef = useRef<(opts?: { source?: ScrapeRunSource }) => Promise<void>>(
     async () => {},
   );
 
@@ -320,7 +347,7 @@ export function ScrapeSchedulerProvider({ children }: { children: ReactNode }) {
   }, [notify]);
 
   const runAllSequential = useCallback(
-    async (opts?: { source?: "manual" | "auto" }) => {
+    async (opts?: { source?: ScrapeRunSource }) => {
       if (runningRef.current) {
         notify({
           title: "Captura en curso",
@@ -334,32 +361,25 @@ export function ScrapeSchedulerProvider({ children }: { children: ReactNode }) {
       stopRequestedRef.current = false;
       setIsRunningAll(true);
       const source = opts?.source ?? "manual";
+      const copy = RUN_COPY[source];
 
       try {
         const active = (await getJobPortals(true)).filter((p) => p.isActive);
         const portals =
-          source === "auto"
-            ? autoPortalIds.length
-              ? active.filter((p) => autoPortalIds.includes(p.id))
-              : []
-            : active;
+          source === "manual"
+            ? active
+            : active.filter((p) => autoPortalIds.includes(p.id));
         if (!portals.length) {
           notify({
-            title: source === "auto" ? "Sin portales en la automática" : "Sin portales activos",
-            body:
-              source === "auto"
-                ? "Marca al menos un portal para la ejecución automática."
-                : "Activa al menos un portal para capturar.",
+            title: copy.emptyTitle,
+            body: copy.emptyBody,
             tone: "info",
           });
           return;
         }
 
         notify({
-          title:
-            source === "auto"
-              ? "Captura automática iniciada"
-              : "Captura de todos los portales",
+          title: copy.startTitle,
           body: `Se ejecutarán ${portals.length} portal(es) uno detrás de otro.`,
           tone: "info",
         });
@@ -412,10 +432,7 @@ export function ScrapeSchedulerProvider({ children }: { children: ReactNode }) {
 
         if (!stopped) {
           notify({
-            title:
-              source === "auto"
-                ? "Captura automática terminada"
-                : "Captura secuencial terminada",
+            title: copy.endTitle,
             body: `OK: ${ok} · Errores: ${failed} · Nuevas: ${inserted} · Actualizadas: ${updated}`,
             tone: failed > 0 && ok === 0 ? "error" : "success",
           });

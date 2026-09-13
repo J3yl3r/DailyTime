@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { History, Pencil, Play, Square, Trash2, Layers, Timer, Globe } from "lucide-react";
+import { History, Pencil, Play, Square, Trash2, Layers, ListChecks, Timer, Globe } from "lucide-react";
 import { toast } from "sonner";
 import type { JobPortal, JobPortalScrapeLog } from "@/types/api";
 import { useJobPortals } from "@/hooks/queries/use-job-portals";
@@ -323,6 +323,16 @@ export function JobPortalsView() {
   const autoCount = scrape.autoPortalIds.filter((id) =>
     items.some((item) => item.id === id && item.isActive),
   ).length;
+  const [runningSelected, setRunningSelected] = useState(false);
+
+  const captureSelected = async () => {
+    setRunningSelected(true);
+    try {
+      await scrape.runAllSequential({ source: "selected" });
+    } finally {
+      setRunningSelected(false);
+    }
+  };
 
   const openChrome = async () => {
     try {
@@ -452,7 +462,20 @@ export function JobPortalsView() {
             className="inline-flex items-center gap-1.5 rounded-md bg-[var(--accent)] px-3 py-2 text-sm font-medium text-white hover:bg-[var(--accent-strong)] disabled:opacity-50"
           >
             <Layers className="size-4" />
-            {scrape.isRunningAll ? "Capturando todos…" : "Capturar todos (secuencia)"}
+            {scrape.isRunningAll && !runningSelected
+              ? "Capturando todos…"
+              : "Capturar todos (secuencia)"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void captureSelected()}
+            disabled={busy || autoCount === 0}
+            className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] px-3 py-2 text-sm font-medium text-[var(--ink)] hover:bg-[var(--surface-muted)] disabled:opacity-50"
+          >
+            <ListChecks className="size-4" />
+            {runningSelected
+              ? "Capturando marcados…"
+              : `Capturar marcados (${autoCount})`}
           </button>
           {busy ? (
             <button
@@ -496,6 +519,10 @@ export function JobPortalsView() {
           </label>
         </div>
         <p className="text-xs text-[var(--muted)]">
+          «Capturar marcados» ejecuta ahora mismo, en secuencia, solo los portales con
+          el check Automática, sin encender la ejecución automática ni programar la
+          siguiente corrida.
+          {" "}
           Intervalo permitido: {MIN_INTERVAL_MINUTES}–{MAX_INTERVAL_MINUTES} min (recomendado 60).
           {scrape.autoEnabled
             ? ` Automática activa (${autoCount} portal${autoCount === 1 ? "" : "es"}).${scrape.nextAutoAt ? ` Próxima: ${new Date(scrape.nextAutoAt).toLocaleTimeString()}.` : ""}${scrape.lastAutoAt ? ` Última: ${new Date(scrape.lastAutoAt).toLocaleString()}.` : ""}`
