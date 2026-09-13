@@ -86,7 +86,7 @@ public class PortalScrapeBackgroundService : BackgroundService
                         {
                             SlotAt = missed,
                             Status = "skipped",
-                            Message = "Omitida: a esa hora el equipo estaba apagado, suspendido o con otra captura en curso."
+                            Message = "A esa hora el equipo estaba apagado, suspendido o con otra captura en curso."
                         }, stoppingToken);
                         continue;
                     }
@@ -149,14 +149,14 @@ public class PortalScrapeBackgroundService : BackgroundService
 
         if (_runs.RunningPortalIds.Count > 0)
         {
-            await MarkAsync(api, slot, "skipped", "Omitida: había una captura manual en curso.", null);
+            await MarkAsync(api, slot, "skipped", "Había una captura manual en curso.", null);
             return;
         }
 
         var portals = await api.GetAutoPortalsAsync(stoppingToken);
         if (portals.Count == 0)
         {
-            await MarkAsync(api, slot, "skipped", "Omitida: no hay portales activos marcados como Automática.", null);
+            await MarkAsync(api, slot, "skipped", "No hay portales activos marcados como Automática.", null);
             return;
         }
 

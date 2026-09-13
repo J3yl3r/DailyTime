@@ -268,14 +268,18 @@ export function ScrapeScheduleCard({
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border)] pt-3">
         <p className="text-xs text-[var(--muted)]">
-          {running && schedule?.lastSlotAt
-            ? `Captura de las ${formatSlot(schedule.lastSlotAt)} en curso. `
-            : schedule?.enabled && schedule.nextSlotAt
-              ? `Próxima: ${formatSlot(schedule.nextSlotAt)}. `
-              : ""}
-          {!running && schedule?.lastSlotAt && schedule.lastSlotStatus
-            ? `Última: ${formatSlot(schedule.lastSlotAt)} · ${SLOT_STATUS_LABELS[schedule.lastSlotStatus]}${schedule.lastSlotMessage ? ` · ${schedule.lastSlotMessage}` : ""}`
-            : ""}
+          {[
+            running && schedule?.lastSlotAt
+              ? `Captura de las ${formatSlot(schedule.lastSlotAt)} en curso`
+              : schedule?.enabled && schedule.nextSlotAt
+                ? `Próxima: ${formatSlot(schedule.nextSlotAt)}`
+                : null,
+            !running && schedule?.lastSlotAt && schedule.lastSlotStatus
+              ? `Última: ${formatSlot(schedule.lastSlotAt)} (${SLOT_STATUS_LABELS[schedule.lastSlotStatus]})${schedule.lastSlotMessage ? `: ${schedule.lastSlotMessage}` : ""}`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
         </p>
         <div className="flex gap-2">
           {running ? (

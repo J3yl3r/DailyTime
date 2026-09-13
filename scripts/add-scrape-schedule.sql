@@ -32,3 +32,10 @@ BEGIN
     );
 END
 GO
+
+-- Fila única por defecto (desactivada): evita que dos lecturas simultáneas creen filas duplicadas
+IF NOT EXISTS (SELECT 1 FROM [dbo].[ScrapeSchedule])
+BEGIN
+    INSERT INTO [dbo].[ScrapeSchedule] ([Enabled], [Times]) VALUES (0, N'');
+END
+GO
