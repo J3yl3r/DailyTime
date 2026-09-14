@@ -52,12 +52,18 @@ Si ya hay una captura en curso (manual o programada), `POST /api/jobs/scrape/{id
   quedan registradas como `skipped`; tolerancia de 10 minutos de retraso.
 - `Worker:EnableAutoScrape` es el interruptor general (con `false` solo atiende capturas manuales).
 
-Para que arranque solo al iniciar sesión:
+En BD existentes, aplica la migración una vez (con `-Server` para una instancia concreta, ej. `"(localdb)\MSSQLLocalDB"`):
 
 ```powershell
-.\scripts\apply-migration.ps1 -Script add-scrape-schedule.sql   # una vez, en BD existentes
-.\scripts\register-scheduled-task.ps1                            # tarea de Windows (API + worker)
+.\scripts\apply-migration.ps1 -Script add-scrape-schedule.sql
 ```
+
+Para que el worker esté corriendo al iniciar sesión, usa la **app de bandeja** (arranca API, worker, web y voz, y
+queda visible junto al reloj): crea un acceso directo a `DailyTime-Tray.vbs` en la carpeta de inicio de Windows
+(`Win + R` → `shell:startup`).
+
+> No uses una tarea programada que lance PowerShell oculto con `-ExecutionPolicy Bypass`: Microsoft Defender la
+> bloquea como software potencialmente no deseado (es el mismo patrón que usa el malware para persistir).
 
 Además, habilita **Permitir temporizadores de reactivación** en las opciones de energía de Windows.
 
