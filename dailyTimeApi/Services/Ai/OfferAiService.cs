@@ -89,27 +89,36 @@ public class OfferAiService : IOfferAiService
         if (_state.PausedUntilUtc is not null)
             return 0;
 
-        var remaining = settings.AiDailyLimit
-                        - await _offers.CountAiAnalyzedSinceAsync(OfferAiClock.DayStartUtc(now), cancellationToken);
         var processed = 0;
+        var remaining = 0;
 
-        while (remaining > 0)
+        while (true)
         {
+            if (processed > 0)
+            {
+                await Task.Delay(DelayBetweenCalls, cancellationToken);
+                // Se releen las reglas en cada vuelta: apagar la IA o bajar el límite surte efecto de inmediato.
+                settings = await _triage.GetSettingsAsync(cancellationToken);
+                if (!settings.AiEnabled)
+                    break;
+            }
+
+            remaining = settings.AiDailyLimit
+                        - await _offers.CountAiAnalyzedSinceAsync(OfferAiClock.DayStartUtc(DateTime.UtcNow), cancellationToken);
+            if (remaining <= 0)
+                break;
+
             var offer = (await _offers.GetPendingAiAnalysisAsync(1, cancellationToken)).FirstOrDefault();
             if (offer is null)
                 break;
-
-            if (processed > 0)
-                await Task.Delay(DelayBetweenCalls, cancellationToken);
 
             if (!await AnalyzeAndSaveAsync(offer, settings, profile, cancellationToken))
                 break;
 
             processed++;
-            remaining--;
         }
 
-        if (remaining <= 0 && _state.PausedUntilUtc is null
+        if (settings.AiEnabled && remaining <= 0 && _state.PausedUntilUtc is null
             && await _offers.CountPendingAiAnalysisAsync(cancellationToken) > 0)
         {
             _state.Pause(OfferAiClock.NextResetUtc(DateTime.UtcNow),

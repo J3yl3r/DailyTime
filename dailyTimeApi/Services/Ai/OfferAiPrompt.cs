@@ -17,11 +17,17 @@ public static class OfferAiPrompt
         Eres un asistente que evalúa ofertas de empleo para un candidato de desarrollo de software.
         Responde únicamente con el JSON del esquema, con textos en español, claros y breves.
         No inventes datos: si algo no aparece en la oferta usa "unknown", 0, "" o una lista vacía.
-        Los requisitos obligatorios son los que la oferta exige, no los deseables. Márcalos como cumplidos
-        solo si el perfil del candidato lo respalda.
-        Veredicto: "apply" si el candidato cumple lo esencial; "maybe" si le faltan cosas menores o hay dudas;
-        "skip" si le faltan requisitos obligatorios importantes o hay una restricción que lo excluye
-        (residencia, nivel de idioma o presencialidad fuera de su país).
+        Requisitos obligatorios: solo los que la oferta exige, no los deseables. Para cada uno usa
+        "yes" si el perfil del candidato lo respalda; "no" solo si el perfil muestra claramente que no lo
+        cumple (por ejemplo, otro stack o un nivel de inglés menor); "unknown" si el perfil no tiene ese dato
+        (por ejemplo, años de experiencia no registrados). Un dato ausente del perfil nunca es "no".
+        missingMustHaves: solo requisitos marcados "no"; nunca los "unknown".
+        locationRestriction: solo una restricción de residencia o ubicación que excluya al candidato por su
+        país de residencia; déjalo vacío si la oferta lo admite o no hay restricción.
+        Veredicto: "apply" si cumple lo esencial que se puede verificar; "maybe" si hay dudas o datos
+        desconocidos; "skip" solo si le faltan requisitos obligatorios importantes marcados "no" o una
+        restricción lo excluye (residencia, nivel de idioma o presencialidad fuera de su país). La falta de
+        datos en el perfil nunca justifica "skip" por sí sola.
         """;
 
     public const string ResponseSchemaJson = """
@@ -42,12 +48,12 @@ public static class OfferAiPrompt
                 "required": ["requirement", "met"]
               }
             },
-            "missingMustHaves": { "type": "array", "maxItems": 5, "items": { "type": "string" } },
             "seniority": { "type": "string", "enum": ["junior", "semi-senior", "senior", "lead", "unknown"] },
             "requiredYears": { "type": "integer", "minimum": 0, "maximum": 30 },
             "englishLevel": { "type": "string", "enum": ["none", "basic", "intermediate", "advanced", "unknown"] },
             "workModality": { "type": "string", "enum": ["remote", "hybrid", "onsite", "unknown"] },
-            "locationRestriction": { "type": "string", "description": "Restricción de residencia o ubicación; vacío si no hay." },
+            "locationRestriction": { "type": "string", "description": "Restricción de residencia o ubicación que excluye al candidato por su país; vacío si lo admite o no hay." },
+            "missingMustHaves": { "type": "array", "maxItems": 5, "items": { "type": "string" }, "description": "Solo requisitos obligatorios marcados como no cumplidos." },
             "salary": {
               "type": "object",
               "properties": {
