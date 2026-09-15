@@ -215,6 +215,8 @@ public class OfferAiBackgroundService : BackgroundService
             {
                 await _state.WaitForRunRequestAsync(stoppingToken);
                 _state.BeginRun();
+                // Si una captura programada despertó el equipo, que no vuelva a suspenderse a mitad del análisis.
+                using var awake = WindowsPower.KeepSystemAwake("DailyTime: análisis de ofertas con IA", _logger);
                 using var scope = _scopeFactory.CreateScope();
                 await scope.ServiceProvider.GetRequiredService<IOfferAiService>().ProcessPendingAsync(stoppingToken);
             }
