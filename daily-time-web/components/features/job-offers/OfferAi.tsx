@@ -38,8 +38,14 @@ const PERIOD_LABELS: Record<string, string> = {
   hour: "hora",
 };
 
+/** Igual que el puntaje de la API: un "no encaja" sin requisito incumplido ni restricción cuenta como dudosa. */
 function verdictOf(analysis: OfferAiAnalysis) {
-  return AI_VERDICTS[analysis.verdict] ?? AI_VERDICTS.maybe;
+  const backedSkip =
+    analysis.missingMustHaves.length > 0 ||
+    analysis.mandatoryRequirements.some((r) => r.met === "no") ||
+    analysis.locationRestriction.trim() !== "";
+  const key = analysis.verdict === "skip" && !backedSkip ? "maybe" : analysis.verdict;
+  return AI_VERDICTS[key] ?? AI_VERDICTS.maybe;
 }
 
 /** Insignia compacta para la lista, con el resumen como tooltip. */
