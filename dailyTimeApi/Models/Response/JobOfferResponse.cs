@@ -19,6 +19,14 @@ public class JobOfferResponse
     public string? TechStack { get; set; }
     public DateTime? PostedAt { get; set; }
     public string Status { get; set; } = "new";
+    /// <summary>system | user</summary>
+    public string StatusSource { get; set; } = "system";
+    public string? DiscardReason { get; set; }
+    public int? PriorityScore { get; set; }
+    public string? PriorityTier { get; set; }
+    public IReadOnlyList<ScoreFactorResponse> ScoreFactors { get; set; } = [];
+    public DateTime? ScoredAt { get; set; }
+    public bool IsPinned { get; set; }
     public int SortOrder { get; set; }
     public DateTime CapturedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
@@ -29,4 +37,6 @@ public class UpsertJobOffersResponse
     public int Inserted { get; set; }
     public int Updated { get; set; }
     public int Total { get; set; }
+    /// <summary>Ofertas descartadas por las reglas en este lote.</summary>
+    public int AutoDiscarded { get; set; }
 }

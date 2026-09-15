@@ -30,6 +30,9 @@ public class JobOfferFilterRequest
     public DateTime? CapturedTo { get; set; }
     public DateTime? PostedFrom { get; set; }
     public DateTime? PostedTo { get; set; }
+
+    /// <summary>Prioridades A, B, C; "none" = sin puntaje.</summary>
+    public List<string>? Tiers { get; set; }
 }
 
 public class BulkJobOfferStatusRequest

@@ -43,7 +43,7 @@ cd dailyTimeApi         # o dailyTimeWorker
 dotnet run --launch-profile https
 dotnet build
 ```
-No hay suite de tests automatizada en ninguno de los dos proyectos .NET actualmente.
+Pruebas: `dotnet test dailyTimeApi.Tests` (xUnit; hoy cubre la priorización de ofertas). Si la API está corriendo y bloquea sus DLL, compila a otra carpeta con `-o`. El worker no tiene pruebas.
 
 Playwright del worker (una sola vez tras el primer build):
 ```powershell
@@ -83,6 +83,7 @@ Dominios principales expuestos por los controllers:
 - **Bóveda de credenciales**: `VaultAccounts`, `VaultPasswords`, `VaultServices`.
 - **Carrera laboral**: `CareerProfile`, `CareerCompanies/Positions/Locations/Fields/Technologies`, `CareerApplicationStatuses`, `WorkExperiences`, `JobApplications`, `FitScore` (match candidato-oferta).
 - **Scraping de empleo**: `JobPortals`, `JobOffers`, `Companies`, `People` — alimentados por `dailyTimeWorker`.
+- **Priorización de ofertas**: `Services/Triage/OfferScorer` (función pura) puntúa 0–100 (tier A/B/C) y decide descartes con las reglas de `OfferTriageConfig` y el perfil de carrera. Se aplica en el upsert del worker y con `api/job-offers/triage/*` (vista previa, guardar y recalcular). Las reglas nunca cambian un estado con `StatusSource = user`.
 
 Config vía `IConfiguration`, no hardcodeada: `ConnectionStrings:DefaultConnection`, `Cors:Origins`, `Database:EnsureCreated`, `Database:SeedMinimal`, `DisableHttpsRedirection`. En Docker estos se pasan como variables de entorno (`Database__EnsureCreated`, etc.); en local van en `appsettings.Development.json` (gitignored en su mayor parte — no subir credenciales).
 

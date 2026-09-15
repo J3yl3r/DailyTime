@@ -36,6 +36,7 @@ public class JobOffersController : ControllerBase
         [FromQuery] DateTime? capturedTo,
         [FromQuery] DateTime? postedFrom,
         [FromQuery] DateTime? postedTo,
+        [FromQuery] string[]? tiers,
         CancellationToken cancellationToken)
     {
         try
@@ -60,7 +61,8 @@ public class JobOffersController : ControllerBase
                 CapturedFrom = capturedFrom,
                 CapturedTo = capturedTo,
                 PostedFrom = postedFrom,
-                PostedTo = postedTo
+                PostedTo = postedTo,
+                Tiers = ParseStringList(null, tiers)
             };
             var items = await _service.GetAllAsync(filter, cancellationToken);
             return Ok(ApiResponse<IReadOnlyList<JobOfferResponse>>.Ok(items));
@@ -153,6 +155,19 @@ public class JobOffersController : ControllerBase
         {
             await _service.ReorderAsync(request, cancellationToken);
             return Ok(ApiResponse<object>.Ok(null!, "Orden actualizado."));
+        }
+        catch (Exception ex) { return HandleError(ex); }
+    }
+
+    /// <summary>Fija la oferta arriba del puntaje (al final de las fijadas) o la desfija.</summary>
+    [HttpPut("{id:int}/pin")]
+    public async Task<ActionResult<ApiResponse<JobOfferResponse>>> SetPinned(
+        int id, [FromBody] SetJobOfferPinnedRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var item = await _service.SetPinnedAsync(id, request.Pinned, cancellationToken);
+            return Ok(ApiResponse<JobOfferResponse>.Ok(item, item.IsPinned ? "Oferta fijada." : "Oferta desfijada."));
         }
         catch (Exception ex) { return HandleError(ex); }
     }

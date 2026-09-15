@@ -22,9 +22,31 @@ public class JobOffer
     public DateTime? PostedAt { get; set; }
     /// <summary>new | seen | discarded | applied</summary>
     public string Status { get; set; } = "new";
+    /// <summary>
+    /// Quién fijó el estado actual: <see cref="JobOfferStatusSources.System"/> (reglas) o
+    /// <see cref="JobOfferStatusSources.User"/>. Las reglas nunca cambian un estado decidido por el usuario.
+    /// </summary>
+    public string StatusSource { get; set; } = JobOfferStatusSources.System;
+    /// <summary>Motivo del descarte automático; null si la descartó el usuario o no está descartada.</summary>
+    public string? DiscardReason { get; set; }
+    /// <summary>Puntaje de prioridad 0–100 calculado con reglas y perfil. Null = sin evaluar.</summary>
+    public int? PriorityScore { get; set; }
+    /// <summary>A | B | C según los umbrales configurados.</summary>
+    public string? PriorityTier { get; set; }
+    /// <summary>JSON con el desglose del puntaje (factores y puntos).</summary>
+    public string? ScoreBreakdown { get; set; }
+    public DateTime? ScoredAt { get; set; }
+    /// <summary>Fijada al arrastrarla: se ordena por <see cref="SortOrder"/> por encima del puntaje.</summary>
+    public bool IsPinned { get; set; }
     public int SortOrder { get; set; }
     public DateTime CapturedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 
     public JobPortal JobPortal { get; set; } = null!;
+}
+
+public static class JobOfferStatusSources
+{
+    public const string System = "system";
+    public const string User = "user";
 }

@@ -307,9 +307,71 @@ export type JobOffer = {
   techStack: string | null;
   postedAt: string | null;
   status: JobOfferStatus | string;
+  /** Quién fijó el estado: las reglas ("system") o el usuario ("user"). */
+  statusSource: "system" | "user" | string;
+  /** Motivo del descarte automático; null si la descartó el usuario. */
+  discardReason: string | null;
+  priorityScore: number | null;
+  priorityTier: PriorityTier | null;
+  scoreFactors: ScoreFactor[];
+  scoredAt: string | null;
+  /** Fijada al arrastrar: va arriba del puntaje. */
+  isPinned: boolean;
   sortOrder: number;
   capturedAt: string;
   updatedAt: string;
+};
+
+export type PriorityTier = "A" | "B" | "C";
+
+export type ScoreFactor = {
+  key: string;
+  label: string;
+  points: number;
+  /** 0 = penalización. */
+  maxPoints: number;
+  detail: string;
+};
+
+export type OfferTriageSettings = {
+  autoDiscardEnabled: boolean;
+  maxAgeDays: number;
+  allowedCountries: string[];
+  discardOnsiteAbroad: boolean;
+  discardOnsiteLocal: boolean;
+  discardResidencyAbroad: boolean;
+  discardOutOfProfile: boolean;
+  discardDuplicates: boolean;
+  excludedTitleKeywords: string[];
+  blockedCompanies: string[];
+  penalizeEnglishGap: boolean;
+  tierAMin: number;
+  tierBMin: number;
+};
+
+export type RescoreJobOffersResult = {
+  dryRun: boolean;
+  evaluated: number;
+  activeAfter: number;
+  tierA: number;
+  tierB: number;
+  tierC: number;
+  newlyDiscarded: number;
+  restored: number;
+  protectedByUser: number;
+  discardReasons: { reason: string; count: number }[];
+  samples: {
+    id: number;
+    title: string;
+    company: string | null;
+    portalName: string;
+    reason: string;
+  }[];
+};
+
+export type UpdateOfferTriageResult = {
+  settings: OfferTriageSettings;
+  result: RescoreJobOffersResult;
 };
 
 export type JobOfferFilters = {
@@ -332,6 +394,8 @@ export type JobOfferFilters = {
   capturedTo?: string;
   postedFrom?: string;
   postedTo?: string;
+  /** "A" | "B" | "C" | "none" (sin puntaje). */
+  tiers?: string[];
 };
 
 export type JobOfferMeta = {

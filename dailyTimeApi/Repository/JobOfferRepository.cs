@@ -27,8 +27,11 @@ public class JobOfferRepository : IJobOfferRepository
         CancellationToken cancellationToken = default)
     {
         var query = ApplyFilter(_context.JobOffers.AsNoTracking().Include(x => x.JobPortal), filter);
+        // Fijadas primero (en su orden manual), luego por puntaje de prioridad y fecha.
         return await query
-            .OrderBy(x => x.SortOrder)
+            .OrderByDescending(x => x.IsPinned)
+            .ThenBy(x => x.IsPinned ? x.SortOrder : 0)
+            .ThenByDescending(x => x.PriorityScore ?? -1)
             .ThenByDescending(x => x.PostedAt ?? x.CapturedAt)
             .ThenByDescending(x => x.CapturedAt)
             .ToListAsync(cancellationToken);
@@ -137,6 +140,8 @@ public class JobOfferRepository : IJobOfferRepository
             .ExecuteUpdateAsync(
                 s => s
                     .SetProperty(x => x.Status, status)
+                    .SetProperty(x => x.StatusSource, JobOfferStatusSources.User)
+                    .SetProperty(x => x.DiscardReason, (string?)null)
                     .SetProperty(x => x.UpdatedAt, now),
                 cancellationToken);
     }
@@ -167,10 +172,40 @@ public class JobOfferRepository : IJobOfferRepository
                 .Where(x => x.Id == id)
                 .ExecuteUpdateAsync(
                     s => s
+                        .SetProperty(x => x.IsPinned, true)
                         .SetProperty(x => x.SortOrder, order)
                         .SetProperty(x => x.UpdatedAt, now),
                     cancellationToken);
         }
+    }
+
+    public async Task<int> GetMaxPinnedSortOrderAsync(CancellationToken cancellationToken = default) =>
+        await _context.JobOffers
+            .Where(x => x.IsPinned)
+            .MaxAsync(x => (int?)x.SortOrder, cancellationToken) ?? -1;
+
+    public async Task<IReadOnlyList<JobOffer>> GetAllForTriageAsync(
+        bool tracked, CancellationToken cancellationToken = default)
+    {
+        var query = _context.JobOffers.Include(x => x.JobPortal).AsQueryable();
+        if (!tracked)
+            query = query.AsNoTracking();
+        return await query.OrderBy(x => x.Id).ToListAsync(cancellationToken);
+    }
+
+    public Task<JobOffer?> FindCrossPortalDuplicateAsync(
+        string title, string? company, int portalId, int excludeId, CancellationToken cancellationToken = default)
+    {
+        var normalizedTitle = title.Trim().ToLower();
+        var normalizedCompany = (company ?? string.Empty).Trim().ToLower();
+        return _context.JobOffers.AsNoTracking()
+            .Include(x => x.JobPortal)
+            .Where(x => x.JobPortalId != portalId
+                        && x.Id != excludeId
+                        && x.Title.ToLower() == normalizedTitle
+                        && (x.Company ?? string.Empty).ToLower() == normalizedCompany)
+            .OrderBy(x => x.Id)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
     public async Task AddAsync(JobOffer entity, CancellationToken cancellationToken = default) =>
@@ -204,6 +239,18 @@ public class JobOfferRepository : IJobOfferRepository
         }
         if (statuses.Count > 0)
             query = query.Where(x => statuses.Contains(x.Status.ToLower()));
+
+        var tiers = filter.Tiers?
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Select(t => t.Trim().ToUpperInvariant())
+            .ToList() ?? [];
+        if (tiers.Count > 0)
+        {
+            var includeUnscored = tiers.Remove("NONE");
+            query = query.Where(x =>
+                (x.PriorityTier != null && tiers.Contains(x.PriorityTier))
+                || (includeUnscored && x.PriorityTier == null));
+        }
 
         if (!string.IsNullOrWhiteSpace(filter.Search))
         {

@@ -24,7 +24,14 @@ public interface IJobOfferRepository
         IReadOnlyList<int> ids, string status, CancellationToken cancellationToken = default);
     Task<int> BulkDeleteAsync(
         IReadOnlyList<int> ids, CancellationToken cancellationToken = default);
+    /// <summary>Fija las ofertas indicadas en ese orden (arriba del puntaje).</summary>
     Task ReorderAsync(IReadOnlyList<int> orderedIds, CancellationToken cancellationToken = default);
+    Task<int> GetMaxPinnedSortOrderAsync(CancellationToken cancellationToken = default);
+    /// <summary>Todas las ofertas con portal, para recalcular puntaje y descarte.</summary>
+    Task<IReadOnlyList<JobOffer>> GetAllForTriageAsync(bool tracked, CancellationToken cancellationToken = default);
+    /// <summary>Primera oferta de otro portal con el mismo título y empresa.</summary>
+    Task<JobOffer?> FindCrossPortalDuplicateAsync(
+        string title, string? company, int portalId, int excludeId, CancellationToken cancellationToken = default);
     Task AddAsync(JobOffer entity, CancellationToken cancellationToken = default);
     void Update(JobOffer entity);
     void Remove(JobOffer entity);

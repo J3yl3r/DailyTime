@@ -1,7 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { ExternalLink, Eye, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  ExternalLink,
+  Eye,
+  Pin,
+  PinOff,
+  RefreshCw,
+  RotateCcw,
+  SlidersHorizontal,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 import type { JobOffer, JobOfferFilters } from "@/types/api";
 import { useJobOffers } from "@/hooks/queries/use-job-offers";
@@ -21,7 +30,15 @@ import {
 } from "@/components/ui/MultiSelect";
 import { FormModal } from "@/components/shared/form-modal";
 import { DetailField, VacancyBody } from "@/components/features/career/vacancy-detail";
+import {
+  OfferScoreBadge,
+  OfferScoreBreakdown,
+  TIER_COLORS,
+  TIER_LABELS,
+} from "@/components/features/job-offers/OfferScore";
+import { OfferTriageRulesModal } from "@/components/features/job-offers/OfferTriageRulesModal";
 import { todayApiDate } from "@/lib/utils/date";
+import { cn } from "@/lib/utils/cn";
 
 const STATUS_LABELS: Record<string, string> = {
   new: "Nueva",
@@ -69,7 +86,12 @@ export function JobOffersView() {
   const [postedTo, setPostedTo] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [viewing, setViewing] = useState<JobOffer | null>(null);
-  const [localItems, setLocalItems] = useState<JobOffer[] | null>(null);
+  const [localOrder, setLocalOrder] = useState<{
+    source: JobOffer[] | undefined;
+    items: JobOffer[];
+  } | null>(null);
+  const [selectedTiers, setSelectedTiers] = useState<string[]>([]);
+  const [rulesOpen, setRulesOpen] = useState(false);
 
   const filters = useMemo<JobOfferFilters>(() => {
     const f: JobOfferFilters = {};
@@ -85,6 +107,7 @@ export function JobOffersView() {
     if (capturedTo) f.capturedTo = capturedTo;
     if (postedFrom) f.postedFrom = postedFrom;
     if (postedTo) f.postedTo = postedTo;
+    if (selectedTiers.length > 0) f.tiers = selectedTiers;
     return f;
   }, [
     selectedPortalIds,
@@ -99,16 +122,15 @@ export function JobOffersView() {
     capturedTo,
     postedFrom,
     postedTo,
+    selectedTiers,
   ]);
 
   const query = useJobOffers(filters);
   const mutations = useJobOfferMutations();
 
-  useEffect(() => {
-    setLocalItems(null);
-  }, [query.data]);
-
-  const items = localItems ?? query.data ?? [];
+  // Orden optimista tras arrastrar; se descarta en cuanto llegan datos nuevos del servidor.
+  const items =
+    localOrder && localOrder.source === query.data ? localOrder.items : (query.data ?? []);
   const portalOptions = useMemo(() => portals.data ?? [], [portals.data]);
   const countries = meta.data?.countries ?? [];
   const languages = meta.data?.languages ?? [];
@@ -116,12 +138,22 @@ export function JobOffersView() {
   const contractTypes = meta.data?.contractTypes ?? [];
   const techStacks = meta.data?.techStacks ?? [];
 
-  const handleReorder = (newItems: JobOffer[]) => {
-    setLocalItems(newItems);
-    const ids = newItems.map((item) => item.id);
-    mutations.reorder.mutate(ids, {
+  const handleReorder = (newItems: JobOffer[], movedItem: JobOffer) => {
+    setLocalOrder({ source: query.data, items: newItems });
+    // Arrastrar fija la oferta: se guardan solo las fijadas, en el orden en que quedaron.
+    const pinnedIds = newItems
+      .filter((item) => item.isPinned || item.id === movedItem.id)
+      .map((item) => item.id);
+    mutations.reorder.mutate(pinnedIds, {
+      onSuccess: () => {
+        if (!movedItem.isPinned) {
+          toast.success("Oferta fijada arriba", {
+            description: "Quedará por encima del puntaje hasta que la desfijes.",
+          });
+        }
+      },
       onError: (error) => {
-        setLocalItems(null);
+        setLocalOrder(null);
         toast.error(
           error instanceof Error ? error.message : "No se pudo guardar el orden"
         );
@@ -184,11 +216,34 @@ export function JobOffersView() {
           toast.success(
             next === "applied"
               ? "Marcada como postulada y agregada a Postulaciones"
-              : "Estado actualizado",
+              : next === "new"
+                ? "Oferta restaurada: las reglas ya no la descartarán"
+                : "Estado actualizado",
           ),
         onError: (error) => toast.error(error.message),
       },
     );
+  };
+
+  const togglePin = (item: JobOffer) => {
+    mutations.setPinned.mutate(
+      { id: item.id, pinned: !item.isPinned },
+      {
+        onSuccess: () =>
+          toast.success(item.isPinned ? "Oferta desfijada" : "Oferta fijada arriba"),
+        onError: (error) => toast.error(error.message),
+      },
+    );
+  };
+
+  const rescoreAll = () => {
+    mutations.rescore.mutate(undefined, {
+      onSuccess: (result) =>
+        toast.success("Ofertas recalculadas", {
+          description: `Descartadas: ${result.newlyDiscarded} · Restauradas: ${result.restored} · Activas: ${result.activeAfter}`,
+        }),
+      onError: (error) => toast.error(error.message),
+    });
   };
 
   const bulkStatus = async (next: string) => {
@@ -262,6 +317,16 @@ export function JobOffersView() {
     []
   );
 
+  const tierMultiOptions: MultiSelectOption[] = useMemo(
+    () =>
+      ["A", "B", "C", "none"].map((tier) => ({
+        value: tier,
+        label: TIER_LABELS[tier],
+        color: TIER_COLORS[tier] ?? "#94A3B8",
+      })),
+    []
+  );
+
   const countryMultiOptions: MultiSelectOption[] = useMemo(
     () => countries.map((c) => ({ value: c, label: c })),
     [countries]
@@ -301,6 +366,7 @@ export function JobOffersView() {
     setCapturedTo(today);
     setPostedFrom("");
     setPostedTo("");
+    setSelectedTiers([]);
     clearSelection();
   };
 
@@ -325,6 +391,15 @@ export function JobOffersView() {
         label: `Estado: ${STATUS_LABELS[st] ?? st}`,
         onRemove: () =>
           setSelectedStatuses((prev) => prev.filter((x) => x !== st)),
+      });
+    });
+
+    selectedTiers.forEach((tier) => {
+      pills.push({
+        id: `tier-${tier}`,
+        label: TIER_LABELS[tier] ?? tier,
+        onRemove: () =>
+          setSelectedTiers((prev) => prev.filter((x) => x !== tier)),
       });
     });
 
@@ -383,14 +458,38 @@ export function JobOffersView() {
     selectedWorkModalities,
     selectedContractTypes,
     selectedTechStacks,
+    selectedTiers,
   ]);
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-5">
-      <p className="text-sm text-[var(--muted)]">
-        Filtra por selección múltiple de cargo, portales, país, idioma, stack (.NET, React…), modalidad, contrato y fechas.
-        Selecciona varias ofertas para marcarlas, descartarlas o eliminarlas en bloque.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <p className="max-w-3xl text-sm text-[var(--muted)]">
+          Ordenadas por prioridad (A, B, C) según tu perfil; arrastra una oferta para fijarla arriba.
+          Las reglas descartan automáticamente las que no encajan, con el motivo visible y siempre
+          recuperables.
+        </p>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={rescoreAll}
+            disabled={mutations.rescore.isPending}
+            title="Recalcula puntajes y descartes con las reglas guardadas (útil tras cambiar tu perfil)."
+            className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] px-3 py-2 text-sm text-[var(--ink)] hover:bg-[var(--surface-muted)] disabled:opacity-50"
+          >
+            <RefreshCw className={cn("size-4", mutations.rescore.isPending && "animate-spin")} />
+            {mutations.rescore.isPending ? "Recalculando…" : "Recalcular"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setRulesOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-md bg-[var(--accent)] px-3 py-2 text-sm font-medium text-white hover:bg-[var(--accent-strong)]"
+          >
+            <SlidersHorizontal className="size-4" />
+            Reglas de prioridad
+          </button>
+        </div>
+      </div>
 
       <div className="grid gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-card)] sm:grid-cols-2 lg:grid-cols-3">
         <label className="flex flex-col gap-1 text-xs font-medium text-[var(--muted)] sm:col-span-2 lg:col-span-3">
@@ -418,6 +517,14 @@ export function JobOffersView() {
           options={statusMultiOptions}
           value={selectedStatuses}
           onChange={setSelectedStatuses}
+        />
+
+        <MultiSelect
+          label="Prioridad"
+          placeholder="Todas las prioridades"
+          options={tierMultiOptions}
+          value={selectedTiers}
+          onChange={setSelectedTiers}
         />
 
         <MultiSelect
@@ -541,6 +648,14 @@ export function JobOffersView() {
           </button>
           <button
             type="button"
+            onClick={() => bulkStatus("new")}
+            disabled={mutations.bulkUpdateStatus.isPending}
+            className="rounded-md bg-white px-3 py-1.5 text-xs hover:bg-[var(--surface-muted)]"
+          >
+            Restaurar
+          </button>
+          <button
+            type="button"
             onClick={() => bulkStatus("discarded")}
             disabled={mutations.bulkUpdateStatus.isPending}
             className="rounded-md bg-white px-3 py-1.5 text-xs hover:bg-[var(--surface-muted)]"
@@ -594,10 +709,23 @@ export function JobOffersView() {
           }
           title={(item) => item.title}
           badge={(item) => (
-            <DataListBadge color={STATUS_COLORS[item.status] ?? "#64748B"}>
-              {STATUS_LABELS[item.status] ?? item.status}
-            </DataListBadge>
+            <>
+              <OfferScoreBadge offer={item} />
+              <DataListBadge color={STATUS_COLORS[item.status] ?? "#64748B"}>
+                {STATUS_LABELS[item.status] ?? item.status}
+              </DataListBadge>
+              {item.isPinned ? (
+                <span title="Fijada" className="text-[var(--accent)]">
+                  <Pin className="size-3.5" />
+                </span>
+              ) : null}
+            </>
           )}
+          description={(item) =>
+            item.status === "discarded" && item.discardReason ? (
+              <span>Descartada automáticamente: {item.discardReason}</span>
+            ) : null
+          }
           meta={(item) =>
             [
               item.company,
@@ -628,12 +756,25 @@ export function JobOffersView() {
                   Marcar vista
                 </DataListAction>
               ) : null}
+              <DataListAction
+                onClick={() => togglePin(item)}
+                title={item.isPinned ? "Quitar fijación" : "Fijar arriba"}
+                aria-label={item.isPinned ? "Quitar fijación" : "Fijar arriba"}
+              >
+                {item.isPinned ? <PinOff className="size-3.5" /> : <Pin className="size-3.5" />}
+              </DataListAction>
               <DataListAction onClick={() => setOfferStatus(item, "applied")}>
                 Postulada
               </DataListAction>
-              <DataListAction onClick={() => setOfferStatus(item, "discarded")}>
-                Descartar
-              </DataListAction>
+              {item.status === "discarded" ? (
+                <DataListAction onClick={() => setOfferStatus(item, "new")}>
+                  <RotateCcw className="size-3.5" /> Restaurar
+                </DataListAction>
+              ) : (
+                <DataListAction onClick={() => setOfferStatus(item, "discarded")}>
+                  Descartar
+                </DataListAction>
+              )}
               <DataListAction danger onClick={() => remove(item)}>
                 <Trash2 className="size-3.5" />
               </DataListAction>
@@ -659,6 +800,15 @@ export function JobOffersView() {
           <div className="flex flex-col gap-4">
             <div className="grid gap-3 sm:grid-cols-2">
               <DetailField label="Estado" value={STATUS_LABELS[viewing.status] ?? viewing.status} />
+              <DetailField
+                label="Prioridad"
+                value={
+                  viewing.priorityTier
+                    ? `${viewing.priorityTier} · ${viewing.priorityScore}/100`
+                    : null
+                }
+              />
+              <DetailField label="Motivo de descarte" value={viewing.discardReason} />
               <DetailField label="Portal" value={viewing.portalName} />
               <DetailField label="Empresa" value={viewing.company} />
               <DetailField label="Ubicación" value={viewing.location} />
@@ -683,6 +833,12 @@ export function JobOffersView() {
                 value={new Date(viewing.capturedAt).toLocaleString()}
               />
             </div>
+            <div>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">
+                Puntaje de prioridad
+              </p>
+              <OfferScoreBreakdown offer={viewing} />
+            </div>
             {viewing.url ? (
               <button
                 type="button"
@@ -702,6 +858,8 @@ export function JobOffersView() {
           </div>
         ) : null}
       </FormModal>
+
+      <OfferTriageRulesModal open={rulesOpen} onOpenChange={setRulesOpen} />
     </div>
   );
 }

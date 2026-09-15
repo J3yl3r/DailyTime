@@ -31,6 +31,7 @@ public class AppDbContext : DbContext
     public DbSet<JobOffer> JobOffers => Set<JobOffer>();
     public DbSet<JobPortalScrapeLog> JobPortalScrapeLogs => Set<JobPortalScrapeLog>();
     public DbSet<ScrapeSchedule> ScrapeSchedules => Set<ScrapeSchedule>();
+    public DbSet<OfferTriageConfig> OfferTriageConfigs => Set<OfferTriageConfig>();
     public DbSet<CareerProfile> CareerProfiles => Set<CareerProfile>();
     public DbSet<CareerProfileLink> CareerProfileLinks => Set<CareerProfileLink>();
     public DbSet<CareerProfileLanguage> CareerProfileLanguages => Set<CareerProfileLanguage>();

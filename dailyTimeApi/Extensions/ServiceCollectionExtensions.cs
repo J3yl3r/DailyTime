@@ -35,6 +35,7 @@ namespace dailyTimeApi.Extensions
             services.AddScoped<IJobOfferRepository, JobOfferRepository>();
             services.AddScoped<ICareerProfileRepository, CareerProfileRepository>();
             services.AddScoped<IScrapeScheduleRepository, ScrapeScheduleRepository>();
+            services.AddScoped<IOfferTriageConfigRepository, OfferTriageConfigRepository>();
             services.AddScoped<ITaskItemService, TaskItemService>();
             services.AddScoped<INoteService, NoteService>();
             services.AddScoped<ITimeEntryService, TimeEntryService>();
@@ -59,6 +60,7 @@ namespace dailyTimeApi.Extensions
             services.AddScoped<IFitScoreService, FitScoreService>();
             services.AddScoped<ICareerProfileService, CareerProfileService>();
             services.AddScoped<IScrapeScheduleService, ScrapeScheduleService>();
+            services.AddScoped<IOfferTriageService, OfferTriageService>();
             return services;
         }
     }

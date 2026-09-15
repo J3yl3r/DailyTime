@@ -20,5 +20,6 @@ public interface IJobOfferService
         BulkJobOfferDeleteRequest request, CancellationToken cancellationToken = default);
     Task ReorderAsync(
         ReorderJobOffersRequest request, CancellationToken cancellationToken = default);
+    Task<JobOfferResponse> SetPinnedAsync(int id, bool pinned, CancellationToken cancellationToken = default);
     Task DeleteAsync(int id, CancellationToken cancellationToken = default);
 }

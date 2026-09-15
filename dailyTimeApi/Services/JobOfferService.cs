@@ -1,3 +1,4 @@
+using System.Text.Json;
 using dailyTimeApi.Exceptions;
 using dailyTimeApi.Models.Entities;
 using dailyTimeApi.Models.Request;
@@ -16,16 +17,21 @@ public class JobOfferService : IJobOfferService
 
     private readonly IJobOfferRepository _repository;
     private readonly IJobPortalRepository _portalRepository;
+    private static readonly JsonSerializerOptions ScoreJsonOptions = new() { PropertyNameCaseInsensitive = true };
+
     private readonly IJobApplicationService _applicationService;
+    private readonly IOfferTriageService _triage;
 
     public JobOfferService(
         IJobOfferRepository repository,
         IJobPortalRepository portalRepository,
-        IJobApplicationService applicationService)
+        IJobApplicationService applicationService,
+        IOfferTriageService triage)
     {
         _repository = repository;
         _portalRepository = portalRepository;
         _applicationService = applicationService;
+        _triage = triage;
     }
 
     public async Task<IReadOnlyList<JobOfferResponse>> GetAllAsync(
@@ -59,6 +65,7 @@ public class JobOfferService : IJobOfferService
         var inserted = 0;
         var updated = 0;
         var now = DateTime.UtcNow;
+        var touched = new List<JobOffer>();
         var batchKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var batchContent = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -85,7 +92,7 @@ public class JobOfferService : IJobOfferService
 
             if (existing is null)
             {
-                await _repository.AddAsync(new JobOffer
+                var created = new JobOffer
                 {
                     JobPortalId = request.JobPortalId,
                     Title = Truncate(title, 300),
@@ -107,7 +114,9 @@ public class JobOfferService : IJobOfferService
                     Status = "new",
                     CapturedAt = now,
                     UpdatedAt = now
-                }, cancellationToken);
+                };
+                await _repository.AddAsync(created, cancellationToken);
+                touched.Add(created);
                 inserted++;
             }
             else
@@ -135,16 +144,21 @@ public class JobOfferService : IJobOfferService
                 existing.PostedAt = item.PostedAt ?? existing.PostedAt;
                 existing.UpdatedAt = now;
                 _repository.Update(existing);
+                touched.Add(existing);
                 updated++;
             }
         }
+
+        // Puntaje y descarte automático antes de guardar; nunca pisa un estado decidido por el usuario.
+        var autoDiscarded = await _triage.ApplyToOffersAsync(touched, cancellationToken);
 
         await _repository.SaveChangesAsync(cancellationToken);
         return new UpsertJobOffersResponse
         {
             Inserted = inserted,
             Updated = updated,
-            Total = inserted + updated
+            Total = inserted + updated,
+            AutoDiscarded = autoDiscarded
         };
     }
 
@@ -156,6 +170,8 @@ public class JobOfferService : IJobOfferService
 
         var status = NormalizeStatus(request.Status);
         entity.Status = status;
+        entity.StatusSource = JobOfferStatusSources.User;
+        entity.DiscardReason = null;
         entity.UpdatedAt = DateTime.UtcNow;
 
         if (status == "applied")
@@ -186,6 +202,8 @@ public class JobOfferService : IJobOfferService
                     continue;
 
                 entity.Status = status;
+                entity.StatusSource = JobOfferStatusSources.User;
+                entity.DiscardReason = null;
                 entity.UpdatedAt = DateTime.UtcNow;
                 await _applicationService.EnsureFromOfferAsync(entity, cancellationToken);
                 affected++;
@@ -218,6 +236,25 @@ public class JobOfferService : IJobOfferService
             return;
 
         await _repository.ReorderAsync(ids, cancellationToken);
+    }
+
+    public async Task<JobOfferResponse> SetPinnedAsync(
+        int id, bool pinned, CancellationToken cancellationToken = default)
+    {
+        var entity = await _repository.GetTrackedByIdAsync(id, cancellationToken)
+            ?? throw new NotFoundException($"Oferta {id} no encontrada.");
+
+        if (entity.IsPinned != pinned)
+        {
+            entity.SortOrder = pinned
+                ? await _repository.GetMaxPinnedSortOrderAsync(cancellationToken) + 1
+                : 0;
+            entity.IsPinned = pinned;
+            entity.UpdatedAt = DateTime.UtcNow;
+            await _repository.SaveChangesAsync(cancellationToken);
+        }
+
+        return Map(entity);
     }
 
     public async Task DeleteAsync(int id, CancellationToken cancellationToken = default)
@@ -255,10 +292,31 @@ public class JobOfferService : IJobOfferService
         TechStack = entity.TechStack,
         PostedAt = entity.PostedAt,
         Status = entity.Status,
+        StatusSource = entity.StatusSource,
+        DiscardReason = entity.DiscardReason,
+        PriorityScore = entity.PriorityScore,
+        PriorityTier = entity.PriorityTier,
+        ScoreFactors = ReadScoreFactors(entity.ScoreBreakdown),
+        ScoredAt = entity.ScoredAt,
+        IsPinned = entity.IsPinned,
         SortOrder = entity.SortOrder,
         CapturedAt = entity.CapturedAt,
         UpdatedAt = entity.UpdatedAt
     };
+
+    private static IReadOnlyList<ScoreFactorResponse> ReadScoreFactors(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return [];
+        try
+        {
+            return JsonSerializer.Deserialize<List<ScoreFactorResponse>>(json, ScoreJsonOptions) ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
 
     private static string? DetectTechStackFallback(UpsertJobOfferItem item)
     {

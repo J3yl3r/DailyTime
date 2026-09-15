@@ -120,5 +120,6 @@ export const jobOfferKeys = {
   list: (filters?: JobOfferFilters | null) =>
     [...jobOfferKeys.all, "list", filters ?? {}] as const,
   meta: () => [...jobOfferKeys.all, "meta"] as const,
+  triageSettings: () => [...jobOfferKeys.all, "triage-settings"] as const,
   detail: (id: number) => [...jobOfferKeys.all, "detail", id] as const,
 };

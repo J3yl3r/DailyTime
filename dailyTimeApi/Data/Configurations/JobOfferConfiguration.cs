@@ -24,6 +24,11 @@ public class JobOfferConfiguration : IEntityTypeConfiguration<JobOffer>
         builder.Property(x => x.TechStack).HasMaxLength(200);
         builder.Property(x => x.PostedAt).HasPrecision(3);
         builder.Property(x => x.Status).HasMaxLength(30).IsRequired();
+        builder.Property(x => x.StatusSource).HasMaxLength(10).IsRequired();
+        builder.Property(x => x.DiscardReason).HasMaxLength(500);
+        builder.Property(x => x.PriorityTier).HasMaxLength(1);
+        builder.Property(x => x.ScoreBreakdown); // nvarchar(max)
+        builder.Property(x => x.ScoredAt).HasPrecision(3);
         builder.Property(x => x.SortOrder).HasDefaultValue(0);
         builder.Property(x => x.CapturedAt).HasPrecision(3);
         builder.Property(x => x.UpdatedAt).HasPrecision(3);
@@ -31,6 +36,8 @@ public class JobOfferConfiguration : IEntityTypeConfiguration<JobOffer>
         builder.HasIndex(x => new { x.JobPortalId, x.ExternalKey }).IsUnique();
         builder.HasIndex(x => x.Status);
         builder.HasIndex(x => x.SortOrder);
+        builder.HasIndex(x => x.PriorityScore);
+        builder.HasIndex(x => x.IsPinned);
         builder.HasIndex(x => x.CapturedAt);
         builder.HasIndex(x => x.Country);
         builder.HasIndex(x => x.Language);
