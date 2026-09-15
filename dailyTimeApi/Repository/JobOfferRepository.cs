@@ -188,8 +188,9 @@ public class JobOfferRepository : IJobOfferRepository
         int take, CancellationToken cancellationToken = default) =>
         await PendingAiAnalysis()
             .Include(x => x.JobPortal)
-            .OrderByDescending(x => x.PriorityScore)
-            .ThenByDescending(x => x.PostedAt ?? x.CapturedAt)
+            // Primero lo que entró más recientemente (CapturedAt no cambia al recapturar); en el mismo día, la mayor prioridad.
+            .OrderByDescending(x => x.CapturedAt.Date)
+            .ThenByDescending(x => x.PriorityScore)
             .Take(take)
             .ToListAsync(cancellationToken);
 
@@ -199,11 +200,11 @@ public class JobOfferRepository : IJobOfferRepository
     public Task<int> CountAiAnalyzedSinceAsync(DateTime sinceUtc, CancellationToken cancellationToken = default) =>
         _context.JobOffers.CountAsync(x => x.AiAnalyzedAt != null && x.AiAnalyzedAt >= sinceUtc, cancellationToken);
 
+    /// <summary>Ofertas activas (nuevas o vistas) sin análisis, de cualquier prioridad.</summary>
     private IQueryable<JobOffer> PendingAiAnalysis() =>
         _context.JobOffers.Where(x =>
             x.AiAnalyzedAt == null
-            && (x.Status == "new" || x.Status == "seen")
-            && (x.PriorityTier == "A" || x.PriorityTier == "B"));
+            && (x.Status == "new" || x.Status == "seen"));
 
     public async Task<IReadOnlyList<JobOffer>> GetAllForTriageAsync(
         bool tracked, CancellationToken cancellationToken = default)

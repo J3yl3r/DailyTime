@@ -171,8 +171,6 @@ public class OfferTriageService : IOfferTriageService
             throw new ValidationException("El puntaje mínimo de B debe ser menor que el de A.");
         if (settings.MaxAgeDays is < 0 or > 365)
             throw new ValidationException("La antigüedad máxima debe estar entre 0 y 365 días.");
-        if (settings.AiDailyLimit is < 0 or > 1000)
-            throw new ValidationException("El límite diario de análisis debe estar entre 0 y 1000.");
         var aiModel = string.IsNullOrWhiteSpace(settings.AiModel)
             ? new OfferTriageSettings().AiModel
             : settings.AiModel.Trim();
@@ -193,7 +191,6 @@ public class OfferTriageService : IOfferTriageService
             BlockedCompanies = CleanList(settings.BlockedCompanies),
             PenalizeEnglishGap = settings.PenalizeEnglishGap,
             AiEnabled = settings.AiEnabled,
-            AiDailyLimit = settings.AiDailyLimit,
             AiModel = aiModel,
             TierAMin = settings.TierAMin,
             TierBMin = settings.TierBMin
@@ -263,7 +260,7 @@ public class OfferTriageService : IOfferTriageService
         if (!dryRun)
         {
             await _offers.SaveChangesAsync(cancellationToken);
-            // Pueden haber aparecido ofertas A/B nuevas para analizar con IA.
+            // Pueden haber quedado ofertas activas sin analizar con IA (p. ej. restauradas).
             _aiState.RequestRun();
         }
 

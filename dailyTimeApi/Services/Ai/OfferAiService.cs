@@ -12,7 +12,10 @@ public interface IOfferAiService
 {
     Task<OfferAiStatusResponse> GetStatusAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>Analiza las ofertas A/B pendientes respetando límite diario, pausas y ritmo.</summary>
+    /// <summary>
+    /// Analiza todas las ofertas activas pendientes, las más recientes primero. Solo se detiene cuando no
+    /// quedan, cuando Google agota la cuota gratuita (queda en pausa hasta renovarse) o ante un error general.
+    /// </summary>
     Task<int> ProcessPendingAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Analiza (o reanaliza) una oferta ahora, sea cual sea su prioridad.</summary>
@@ -66,7 +69,6 @@ public class OfferAiService : IOfferAiService
             Configured = _analyzer.IsConfigured,
             Enabled = settings.AiEnabled,
             Model = settings.AiModel,
-            DailyLimit = settings.AiDailyLimit,
             UsedToday = await _offers.CountAiAnalyzedSinceAsync(OfferAiClock.DayStartUtc(now), cancellationToken),
             Pending = await _offers.CountPendingAiAnalysisAsync(cancellationToken),
             IsRunning = _state.IsRunning,
@@ -84,29 +86,22 @@ public class OfferAiService : IOfferAiService
         if (!settings.AiEnabled || !_analyzer.IsConfigured)
             return 0;
 
-        var now = DateTime.UtcNow;
-        _state.ClearPauseIfExpired(now);
+        _state.ClearPauseIfExpired(DateTime.UtcNow);
         if (_state.PausedUntilUtc is not null)
             return 0;
 
         var processed = 0;
-        var remaining = 0;
 
         while (true)
         {
             if (processed > 0)
             {
                 await Task.Delay(DelayBetweenCalls, cancellationToken);
-                // Se releen las reglas en cada vuelta: apagar la IA o bajar el límite surte efecto de inmediato.
+                // Se releen las reglas en cada vuelta: apagar la IA surte efecto de inmediato.
                 settings = await _triage.GetSettingsAsync(cancellationToken);
                 if (!settings.AiEnabled)
                     break;
             }
-
-            remaining = settings.AiDailyLimit
-                        - await _offers.CountAiAnalyzedSinceAsync(OfferAiClock.DayStartUtc(DateTime.UtcNow), cancellationToken);
-            if (remaining <= 0)
-                break;
 
             var offer = (await _offers.GetPendingAiAnalysisAsync(1, cancellationToken)).FirstOrDefault();
             if (offer is null)
@@ -116,13 +111,6 @@ public class OfferAiService : IOfferAiService
                 break;
 
             processed++;
-        }
-
-        if (settings.AiEnabled && remaining <= 0 && _state.PausedUntilUtc is null
-            && await _offers.CountPendingAiAnalysisAsync(cancellationToken) > 0)
-        {
-            _state.Pause(OfferAiClock.NextResetUtc(DateTime.UtcNow),
-                $"Se alcanzó el límite diario de {settings.AiDailyLimit} análisis.");
         }
 
         if (processed > 0)
@@ -138,12 +126,9 @@ public class OfferAiService : IOfferAiService
             throw new ValidationException("Falta la clave de Gemini: configúrala en user secrets como Gemini:ApiKey.");
 
         var (settings, profile) = await _triage.GetContextAsync(cancellationToken);
-        var now = DateTime.UtcNow;
-        _state.ClearPauseIfExpired(now);
+        _state.ClearPauseIfExpired(DateTime.UtcNow);
         if (_state.PausedUntilUtc is { } until)
             throw new ValidationException($"El análisis con IA está en pausa hasta {until:u}. {_state.PauseReason}");
-        if (await _offers.CountAiAnalyzedSinceAsync(OfferAiClock.DayStartUtc(now), cancellationToken) >= settings.AiDailyLimit)
-            throw new ValidationException($"Se alcanzó el límite diario de {settings.AiDailyLimit} análisis.");
 
         try
         {

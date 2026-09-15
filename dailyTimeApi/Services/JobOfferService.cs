@@ -157,7 +157,7 @@ public class JobOfferService : IJobOfferService
         var autoDiscarded = await _triage.ApplyToOffersAsync(touched, cancellationToken);
 
         await _repository.SaveChangesAsync(cancellationToken);
-        // Las nuevas A/B se analizan con IA en segundo plano (no retrasa la respuesta al worker).
+        // Las nuevas activas se analizan con IA en segundo plano (no retrasa la respuesta al worker).
         _aiState.RequestRun();
         return new UpsertJobOffersResponse
         {

@@ -135,7 +135,7 @@ export function OfferAiPanel({
 
       {!analysis ? (
         <p className="text-sm text-[var(--muted)]">
-          Aún no tiene análisis. Se hace solo para las ofertas A y B nuevas; puedes pedirlo ahora.
+          Aún no tiene análisis. Se hace solo para las ofertas activas; puedes pedirlo ahora.
         </p>
       ) : (
         <>

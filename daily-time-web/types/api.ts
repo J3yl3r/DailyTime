@@ -349,7 +349,6 @@ export type OfferAiStatus = {
   configured: boolean;
   enabled: boolean;
   model: string;
-  dailyLimit: number;
   usedToday: number;
   pending: number;
   isRunning: boolean;
@@ -384,7 +383,6 @@ export type OfferTriageSettings = {
   blockedCompanies: string[];
   penalizeEnglishGap: boolean;
   aiEnabled: boolean;
-  aiDailyLimit: number;
   aiModel: string;
   tierAMin: number;
   tierBMin: number;

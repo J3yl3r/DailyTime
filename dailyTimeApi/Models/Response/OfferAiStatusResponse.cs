@@ -6,10 +6,9 @@ public class OfferAiStatusResponse
     public bool Configured { get; set; }
     public bool Enabled { get; set; }
     public string Model { get; set; } = string.Empty;
-    public int DailyLimit { get; set; }
     /// <summary>Análisis hechos desde la medianoche del Pacífico (incluye los fallidos).</summary>
     public int UsedToday { get; set; }
-    /// <summary>Ofertas activas A/B sin análisis.</summary>
+    /// <summary>Ofertas activas (nuevas o vistas) sin análisis.</summary>
     public int Pending { get; set; }
     public bool IsRunning { get; set; }
     public DateTime? PausedUntil { get; set; }

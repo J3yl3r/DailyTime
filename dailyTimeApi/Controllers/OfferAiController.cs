@@ -24,7 +24,7 @@ public class OfferAiController : ControllerBase
         catch (Exception ex) { return HandleError(ex); }
     }
 
-    /// <summary>Pide analizar ya las ofertas A/B pendientes (corre en segundo plano).</summary>
+    /// <summary>Pide analizar ya las ofertas activas pendientes (corre en segundo plano).</summary>
     [HttpPost("analyze-pending")]
     public async Task<ActionResult<ApiResponse<OfferAiStatusResponse>>> AnalyzePending(CancellationToken cancellationToken)
     {

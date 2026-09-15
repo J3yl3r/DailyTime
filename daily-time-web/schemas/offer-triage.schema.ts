@@ -20,11 +20,6 @@ export const offerTriageSchema = z
     blockedCompanies: textList,
     penalizeEnglishGap: z.boolean(),
     aiEnabled: z.boolean(),
-    aiDailyLimit: z
-      .number({ error: "Indica un número" })
-      .int()
-      .min(0, "Mínimo 0")
-      .max(1000, "Máximo 1000"),
     aiModel: z
       .string()
       .trim()

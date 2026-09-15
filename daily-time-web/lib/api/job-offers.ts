@@ -127,7 +127,7 @@ export function getOfferAiStatus() {
   return apiClient.get<OfferAiStatus>("/api/job-offers/ai/status");
 }
 
-/** Pide analizar ya las ofertas A/B pendientes (corre en segundo plano en la API). */
+/** Pide analizar ya las ofertas activas pendientes (corre en segundo plano en la API). */
 export function requestPendingAiAnalysis() {
   return apiClient.post<OfferAiStatus>("/api/job-offers/ai/analyze-pending", {});
 }

@@ -291,36 +291,23 @@ function RulesForm({
             {...form.register("aiEnabled")}
             className="size-4 accent-[var(--accent)]"
           />
-          Analizar automáticamente las ofertas A y B nuevas
+          Analizar automáticamente todas las ofertas activas que entren
         </label>
 
-        <div className="flex flex-wrap gap-4">
-          <label className="flex flex-col gap-1 text-sm text-[var(--ink)]">
-            Modelo
-            <input {...form.register("aiModel")} className={cn(inputClass, "w-60 font-mono text-xs")} />
-            {errors.aiModel ? (
-              <span className="text-xs text-[var(--danger)]">{errors.aiModel.message}</span>
-            ) : null}
-          </label>
-          <label className="flex flex-col gap-1 text-sm text-[var(--ink)]">
-            Límite diario
-            <input
-              type="number"
-              min={0}
-              max={1000}
-              {...form.register("aiDailyLimit", { valueAsNumber: true })}
-              className={cn(inputClass, "w-24")}
-            />
-            {errors.aiDailyLimit ? (
-              <span className="text-xs text-[var(--danger)]">{errors.aiDailyLimit.message}</span>
-            ) : null}
-          </label>
-        </div>
+        <label className="flex flex-col gap-1 text-sm text-[var(--ink)]">
+          Modelo
+          <input {...form.register("aiModel")} className={cn(inputClass, "w-60 font-mono text-xs")} />
+          {errors.aiModel ? (
+            <span className="text-xs text-[var(--danger)]">{errors.aiModel.message}</span>
+          ) : null}
+        </label>
 
         <p className="text-xs text-[var(--muted)]">
-          A Gemini solo se envía la oferta y, de tu perfil, país, países aceptados, modalidad preferida,
-          stacks, años de experiencia y nivel de inglés; nunca nombre, correo, teléfono ni salario. El
-          análisis ajusta el puntaje entre +10 y −20, pero nunca descarta ni cambia estados.
+          Se analizan primero las que entraron más recientemente. No hay tope propio: si Google agota la
+          cuota gratuita, el análisis se pausa y continúa solo cuando se renueva. A Gemini solo se envía la
+          oferta y, de tu perfil, país, países aceptados, modalidad preferida, stacks, años de experiencia y
+          nivel de inglés; nunca nombre, correo, teléfono ni salario. El análisis ajusta el puntaje entre +10
+          y −20, pero nunca descarta ni cambia estados.
         </p>
       </FormModalSection>
 
@@ -387,9 +374,9 @@ function AiStatusLine() {
   const resetsAt = new Date(s.resetsAt).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
   const details = [
     s.isRunning ? "Analizando…" : null,
-    `Hoy: ${s.usedToday}/${s.dailyLimit}`,
-    `Pendientes A/B: ${s.pending}`,
-    `La cuota se renueva a las ${resetsAt}`,
+    `Hoy: ${s.usedToday} analizadas`,
+    `Pendientes: ${s.pending}`,
+    `La cuota de Google se renueva a las ${resetsAt}`,
     s.pausedUntil ? `En pausa: ${s.pauseReason ?? "cuota agotada"}` : null,
     s.lastError && !s.pausedUntil ? `Último error: ${s.lastError}` : null,
   ].filter(Boolean);
