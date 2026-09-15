@@ -27,6 +27,10 @@ public interface IJobOfferRepository
     /// <summary>Fija las ofertas indicadas en ese orden (arriba del puntaje).</summary>
     Task ReorderAsync(IReadOnlyList<int> orderedIds, CancellationToken cancellationToken = default);
     Task<int> GetMaxPinnedSortOrderAsync(CancellationToken cancellationToken = default);
+    /// <summary>Ofertas activas (new/seen) A o B sin intento de análisis con IA, mejor puntaje primero (tracked).</summary>
+    Task<IReadOnlyList<JobOffer>> GetPendingAiAnalysisAsync(int take, CancellationToken cancellationToken = default);
+    Task<int> CountPendingAiAnalysisAsync(CancellationToken cancellationToken = default);
+    Task<int> CountAiAnalyzedSinceAsync(DateTime sinceUtc, CancellationToken cancellationToken = default);
     /// <summary>Todas las ofertas con portal, para recalcular puntaje y descarte.</summary>
     Task<IReadOnlyList<JobOffer>> GetAllForTriageAsync(bool tracked, CancellationToken cancellationToken = default);
     /// <summary>Primera oferta de otro portal con el mismo título y empresa.</summary>

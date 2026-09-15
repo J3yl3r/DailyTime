@@ -3,6 +3,7 @@ import type {
   JobOffer,
   JobOfferFilters,
   JobOfferMeta,
+  OfferAiStatus,
   OfferTriageSettings,
   RescoreJobOffersResult,
   UpdateOfferTriageResult,
@@ -120,5 +121,19 @@ export function previewOfferTriage(settings: OfferTriageSettings) {
 /** Recalcula todas las ofertas con las reglas guardadas (p. ej. tras cambiar el perfil). */
 export function rescoreJobOffers() {
   return apiClient.post<RescoreJobOffersResult>("/api/job-offers/triage/rescore", {});
+}
+
+export function getOfferAiStatus() {
+  return apiClient.get<OfferAiStatus>("/api/job-offers/ai/status");
+}
+
+/** Pide analizar ya las ofertas A/B pendientes (corre en segundo plano en la API). */
+export function requestPendingAiAnalysis() {
+  return apiClient.post<OfferAiStatus>("/api/job-offers/ai/analyze-pending", {});
+}
+
+/** Analiza o reanaliza una oferta y espera el resultado. */
+export function analyzeJobOffer(id: number) {
+  return apiClient.post<JobOffer>(`/api/job-offers/ai/${id}/analyze`, {});
 }
 

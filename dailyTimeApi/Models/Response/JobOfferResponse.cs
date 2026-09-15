@@ -1,3 +1,5 @@
+using dailyTimeApi.Models.Triage;
+
 namespace dailyTimeApi.Models.Response;
 
 public class JobOfferResponse
@@ -26,6 +28,10 @@ public class JobOfferResponse
     public string? PriorityTier { get; set; }
     public IReadOnlyList<ScoreFactorResponse> ScoreFactors { get; set; } = [];
     public DateTime? ScoredAt { get; set; }
+    public OfferAiAnalysis? AiAnalysis { get; set; }
+    public DateTime? AiAnalyzedAt { get; set; }
+    public string? AiModel { get; set; }
+    public string? AiError { get; set; }
     public bool IsPinned { get; set; }
     public int SortOrder { get; set; }
     public DateTime CapturedAt { get; set; }

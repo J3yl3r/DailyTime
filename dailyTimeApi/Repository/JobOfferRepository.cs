@@ -184,6 +184,27 @@ public class JobOfferRepository : IJobOfferRepository
             .Where(x => x.IsPinned)
             .MaxAsync(x => (int?)x.SortOrder, cancellationToken) ?? -1;
 
+    public async Task<IReadOnlyList<JobOffer>> GetPendingAiAnalysisAsync(
+        int take, CancellationToken cancellationToken = default) =>
+        await PendingAiAnalysis()
+            .Include(x => x.JobPortal)
+            .OrderByDescending(x => x.PriorityScore)
+            .ThenByDescending(x => x.PostedAt ?? x.CapturedAt)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+
+    public Task<int> CountPendingAiAnalysisAsync(CancellationToken cancellationToken = default) =>
+        PendingAiAnalysis().CountAsync(cancellationToken);
+
+    public Task<int> CountAiAnalyzedSinceAsync(DateTime sinceUtc, CancellationToken cancellationToken = default) =>
+        _context.JobOffers.CountAsync(x => x.AiAnalyzedAt != null && x.AiAnalyzedAt >= sinceUtc, cancellationToken);
+
+    private IQueryable<JobOffer> PendingAiAnalysis() =>
+        _context.JobOffers.Where(x =>
+            x.AiAnalyzedAt == null
+            && (x.Status == "new" || x.Status == "seen")
+            && (x.PriorityTier == "A" || x.PriorityTier == "B"));
+
     public async Task<IReadOnlyList<JobOffer>> GetAllForTriageAsync(
         bool tracked, CancellationToken cancellationToken = default)
     {

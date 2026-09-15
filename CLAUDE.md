@@ -84,8 +84,9 @@ Dominios principales expuestos por los controllers:
 - **Carrera laboral**: `CareerProfile`, `CareerCompanies/Positions/Locations/Fields/Technologies`, `CareerApplicationStatuses`, `WorkExperiences`, `JobApplications`, `FitScore` (match candidato-oferta).
 - **Scraping de empleo**: `JobPortals`, `JobOffers`, `Companies`, `People` — alimentados por `dailyTimeWorker`.
 - **Priorización de ofertas**: `Services/Triage/OfferScorer` (función pura) puntúa 0–100 (tier A/B/C) y decide descartes con las reglas de `OfferTriageConfig` y el perfil de carrera. Se aplica en el upsert del worker y con `api/job-offers/triage/*` (vista previa, guardar y recalcular). Las reglas nunca cambian un estado con `StatusSource = user`.
+- **Análisis con IA**: `Services/Ai` analiza con Gemini (`generateContent`, capa gratuita) las ofertas activas A/B sin análisis. Lo dispara `OfferAiBackgroundService` tras cada upsert o recálculo, sin sondeo, con límite diario y pausa ante 429. El resultado (`JobOffer.AiAnalysis`) ajusta el puntaje entre +10 y −20; nunca descarta ni cambia estados. Al modelo no se le envían datos personales del perfil. La clave va en user secrets (`dotnet user-secrets set "Gemini:ApiKey" "..." --project dailyTimeApi`), nunca en appsettings.
 
-Config vía `IConfiguration`, no hardcodeada: `ConnectionStrings:DefaultConnection`, `Cors:Origins`, `Database:EnsureCreated`, `Database:SeedMinimal`, `DisableHttpsRedirection`. En Docker estos se pasan como variables de entorno (`Database__EnsureCreated`, etc.); en local van en `appsettings.Development.json` (gitignored en su mayor parte — no subir credenciales).
+Config vía `IConfiguration`, no hardcodeada: `ConnectionStrings:DefaultConnection`, `Cors:Origins`, `Database:EnsureCreated`, `Database:SeedMinimal`, `DisableHttpsRedirection`. En Docker estos se pasan como variables de entorno (`Database__EnsureCreated`, etc.); en local van en `appsettings.Development.json`. Ese archivo **sí está versionado**: los secretos, como `Gemini:ApiKey`, van en user secrets.
 
 ## Arquitectura de `dailyTimeWorker`
 

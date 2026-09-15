@@ -50,6 +50,15 @@ public class OfferTriageSettings
     /// <summary>Resta puntos si la oferta pide inglés avanzado y tu nivel en el perfil no lo es.</summary>
     public bool PenalizeEnglishGap { get; set; } = true;
 
+    /// <summary>Analiza con IA (Gemini) las ofertas A y B activas que aún no tienen análisis.</summary>
+    public bool AiEnabled { get; set; } = true;
+
+    /// <summary>Máximo de análisis por día (la capa gratuita de Gemini tiene cuota diaria).</summary>
+    public int AiDailyLimit { get; set; } = 40;
+
+    /// <summary>Modelo de Gemini para el análisis.</summary>
+    public string AiModel { get; set; } = "gemini-3.5-flash-lite";
+
     /// <summary>Puntaje mínimo para prioridad A.</summary>
     public int TierAMin { get; set; } = 70;
 

@@ -1,12 +1,17 @@
 using dailyTimeApi.Models.Entities;
 using dailyTimeApi.Models.Response;
 using dailyTimeApi.Models.Triage;
+using dailyTimeApi.Services.Triage;
 
 namespace dailyTimeApi.Services.Interfaces;
 
 public interface IOfferTriageService
 {
     Task<OfferTriageSettings> GetSettingsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Reglas guardadas y perfil resuelto (lo usa el análisis con IA).</summary>
+    Task<(OfferTriageSettings Settings, TriageProfile Profile)> GetContextAsync(
+        CancellationToken cancellationToken = default);
 
     /// <summary>Guarda las reglas y recalcula todas las ofertas.</summary>
     Task<UpdateOfferTriageResponse> UpdateSettingsAsync(

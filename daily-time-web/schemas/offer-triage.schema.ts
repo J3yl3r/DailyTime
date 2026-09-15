@@ -19,6 +19,16 @@ export const offerTriageSchema = z
     excludedTitleKeywords: textList,
     blockedCompanies: textList,
     penalizeEnglishGap: z.boolean(),
+    aiEnabled: z.boolean(),
+    aiDailyLimit: z
+      .number({ error: "Indica un número" })
+      .int()
+      .min(0, "Mínimo 0")
+      .max(1000, "Máximo 1000"),
+    aiModel: z
+      .string()
+      .trim()
+      .regex(/^[A-Za-z0-9._-]{1,60}$/, "Modelo inválido (ej. gemini-3.5-flash-lite)"),
     tierAMin: z
       .number({ error: "Indica un puntaje" })
       .int()

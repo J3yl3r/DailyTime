@@ -2,7 +2,9 @@
 using dailyTimeApi.Repository.Interfaces;
 
 using dailyTimeApi.Services;
+using dailyTimeApi.Services.Ai;
 using dailyTimeApi.Services.Interfaces;
+using Microsoft.Extensions.Options;
 
 namespace dailyTimeApi.Extensions
 {
@@ -61,6 +63,18 @@ namespace dailyTimeApi.Extensions
             services.AddScoped<ICareerProfileService, CareerProfileService>();
             services.AddScoped<IScrapeScheduleService, ScrapeScheduleService>();
             services.AddScoped<IOfferTriageService, OfferTriageService>();
+
+            // Análisis de ofertas con IA (Gemini). La clave va en user secrets: Gemini:ApiKey.
+            services.AddOptions<GeminiOptions>().BindConfiguration(GeminiOptions.SectionName);
+            services.AddHttpClient<IOfferAnalyzer, GeminiOfferAnalyzer>((sp, client) =>
+            {
+                var options = sp.GetRequiredService<IOptions<GeminiOptions>>().Value;
+                client.BaseAddress = new Uri(options.BaseUrl.TrimEnd('/') + "/");
+                client.Timeout = TimeSpan.FromSeconds(90);
+            });
+            services.AddSingleton<OfferAiState>();
+            services.AddScoped<IOfferAiService, OfferAiService>();
+            services.AddHostedService<OfferAiBackgroundService>();
             return services;
         }
     }

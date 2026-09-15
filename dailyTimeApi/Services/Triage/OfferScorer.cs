@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using dailyTimeApi.Models.Entities;
 using dailyTimeApi.Models.Triage;
+using dailyTimeApi.Services.Ai;
 
 namespace dailyTimeApi.Services.Triage;
 
@@ -28,6 +29,9 @@ public sealed record TriageProfile(
     bool HasAdvancedEnglish)
 {
     public static TriageProfile Empty { get; } = new(null, [], [], 0, null, false);
+
+    /// <summary>Modalidad preferida tal como la escribió el usuario (p. ej. "Remoto o híbrido").</summary>
+    public string? PreferredModality { get; init; }
 }
 
 /// <summary>
@@ -44,6 +48,8 @@ public static class OfferScorer
     public const int RecencyMax = 10;
     public const int EnglishPenalty = -15;
     public const int OtherStackPenalty = -10;
+    public const int AiApplyBonus = 10;
+    public const int AiSkipPenalty = -15;
 
     private static readonly CultureInfo Spanish = CultureInfo.GetCultureInfo("es-CO");
     private static readonly Regex JsSuffix = new(@"([a-z]+)\.js(?![a-z0-9])", RegexOptions.CultureInvariant | RegexOptions.Compiled);
@@ -273,6 +279,10 @@ public static class OfferScorer
                 $"Pide inglés avanzado; tu nivel: {profile.EnglishLevel}."));
         }
 
+        var aiFactor = ScoreAi(offer.AiAnalysis);
+        if (aiFactor is not null)
+            factors.Add(aiFactor);
+
         var score = Math.Clamp(factors.Sum(f => f.Points), 0, 100);
         var tier = score >= settings.TierAMin ? "A" : score >= settings.TierBMin ? "B" : "C";
 
@@ -349,6 +359,35 @@ public static class OfferScorer
             return "Fuera de tu perfil: sin tus stacks ni rol técnico";
 
         return null;
+    }
+
+    /// <summary>
+    /// Ajuste por el análisis con IA: +10 si recomienda postular, −15 si no encaja y −5 más si faltan
+    /// dos o más requisitos obligatorios. Nunca descarta: solo ordena.
+    /// </summary>
+    private static ScoreFactor? ScoreAi(string? analysisJson)
+    {
+        var analysis = OfferAiJson.TryRead(analysisJson);
+        if (analysis is null)
+            return null;
+
+        var points = analysis.Verdict switch
+        {
+            "apply" => AiApplyBonus,
+            "skip" => AiSkipPenalty,
+            _ => 0
+        };
+        if (analysis.MissingMustHaves.Count >= 2)
+            points -= 5;
+
+        var verdict = analysis.Verdict switch
+        {
+            "apply" => "Recomienda postular",
+            "skip" => "No encaja",
+            _ => "Dudosa"
+        };
+        var detail = string.IsNullOrWhiteSpace(analysis.Summary) ? $"{verdict}." : $"{verdict}: {analysis.Summary}";
+        return new ScoreFactor("ai", "Análisis IA", points, points >= 0 ? AiApplyBonus : 0, detail);
     }
 
     private static ScoreFactor ScoreSeniority(string text, string title, double experienceYears)

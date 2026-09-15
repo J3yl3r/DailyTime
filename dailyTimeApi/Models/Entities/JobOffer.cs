@@ -36,6 +36,13 @@ public class JobOffer
     /// <summary>JSON con el desglose del puntaje (factores y puntos).</summary>
     public string? ScoreBreakdown { get; set; }
     public DateTime? ScoredAt { get; set; }
+    /// <summary>JSON de <see cref="dailyTimeApi.Models.Triage.OfferAiAnalysis"/>; null = sin análisis de IA.</summary>
+    public string? AiAnalysis { get; set; }
+    /// <summary>Momento del último intento de análisis con IA (exitoso o no).</summary>
+    public DateTime? AiAnalyzedAt { get; set; }
+    public string? AiModel { get; set; }
+    /// <summary>Error del último intento; no se reintenta sola, se puede reanalizar a mano.</summary>
+    public string? AiError { get; set; }
     /// <summary>Fijada al arrastrarla: se ordena por <see cref="SortOrder"/> por encima del puntaje.</summary>
     public bool IsPinned { get; set; }
     public int SortOrder { get; set; }

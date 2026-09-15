@@ -4,6 +4,7 @@ using dailyTimeApi.Models.Entities;
 using dailyTimeApi.Models.Request;
 using dailyTimeApi.Models.Response;
 using dailyTimeApi.Repository.Interfaces;
+using dailyTimeApi.Services.Ai;
 using dailyTimeApi.Services.Interfaces;
 
 namespace dailyTimeApi.Services;
@@ -21,17 +22,20 @@ public class JobOfferService : IJobOfferService
 
     private readonly IJobApplicationService _applicationService;
     private readonly IOfferTriageService _triage;
+    private readonly OfferAiState _aiState;
 
     public JobOfferService(
         IJobOfferRepository repository,
         IJobPortalRepository portalRepository,
         IJobApplicationService applicationService,
-        IOfferTriageService triage)
+        IOfferTriageService triage,
+        OfferAiState aiState)
     {
         _repository = repository;
         _portalRepository = portalRepository;
         _applicationService = applicationService;
         _triage = triage;
+        _aiState = aiState;
     }
 
     public async Task<IReadOnlyList<JobOfferResponse>> GetAllAsync(
@@ -153,6 +157,8 @@ public class JobOfferService : IJobOfferService
         var autoDiscarded = await _triage.ApplyToOffersAsync(touched, cancellationToken);
 
         await _repository.SaveChangesAsync(cancellationToken);
+        // Las nuevas A/B se analizan con IA en segundo plano (no retrasa la respuesta al worker).
+        _aiState.RequestRun();
         return new UpsertJobOffersResponse
         {
             Inserted = inserted,
@@ -298,6 +304,10 @@ public class JobOfferService : IJobOfferService
         PriorityTier = entity.PriorityTier,
         ScoreFactors = ReadScoreFactors(entity.ScoreBreakdown),
         ScoredAt = entity.ScoredAt,
+        AiAnalysis = OfferAiJson.TryRead(entity.AiAnalysis),
+        AiAnalyzedAt = entity.AiAnalyzedAt,
+        AiModel = entity.AiModel,
+        AiError = entity.AiError,
         IsPinned = entity.IsPinned,
         SortOrder = entity.SortOrder,
         CapturedAt = entity.CapturedAt,

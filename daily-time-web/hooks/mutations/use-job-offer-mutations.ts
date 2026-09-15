@@ -2,11 +2,13 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
+  analyzeJobOffer,
   bulkDeleteJobOffers,
   bulkUpdateJobOfferStatus,
   deleteJobOffer,
   previewOfferTriage,
   reorderJobOffers,
+  requestPendingAiAnalysis,
   rescoreJobOffers,
   setJobOfferPinned,
   updateJobOfferStatus,
@@ -82,7 +84,19 @@ export function useJobOfferMutations() {
     onSuccess: invalidateOffers,
   });
 
+  const analyzeWithAi = useMutation({
+    mutationFn: (id: number) => analyzeJobOffer(id),
+    onSuccess: invalidateOffers,
+  });
+
+  const requestAiAnalysis = useMutation({
+    mutationFn: () => requestPendingAiAnalysis(),
+    onSuccess: (status) => queryClient.setQueryData(jobOfferKeys.aiStatus(), status),
+  });
+
   return {
+    analyzeWithAi,
+    requestAiAnalysis,
     updateStatus,
     bulkUpdateStatus,
     reorder,

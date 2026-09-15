@@ -37,6 +37,7 @@ import {
   TIER_LABELS,
 } from "@/components/features/job-offers/OfferScore";
 import { OfferTriageRulesModal } from "@/components/features/job-offers/OfferTriageRulesModal";
+import { OfferAiBadge, OfferAiPanel } from "@/components/features/job-offers/OfferAi";
 import { todayApiDate } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
 
@@ -711,6 +712,7 @@ export function JobOffersView() {
           badge={(item) => (
             <>
               <OfferScoreBadge offer={item} />
+              <OfferAiBadge offer={item} />
               <DataListBadge color={STATUS_COLORS[item.status] ?? "#64748B"}>
                 {STATUS_LABELS[item.status] ?? item.status}
               </DataListBadge>
@@ -839,6 +841,7 @@ export function JobOffersView() {
               </p>
               <OfferScoreBreakdown offer={viewing} />
             </div>
+            <OfferAiPanel offer={viewing} onUpdated={setViewing} />
             {viewing.url ? (
               <button
                 type="button"

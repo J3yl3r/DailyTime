@@ -58,7 +58,10 @@ public static class TriageProfileBuilder
         var normalizedLevel = OfferScorer.Normalize(level);
         var advanced = AdvancedLevelTerms.Any(term => OfferScorer.ContainsTerm(normalizedLevel, term));
 
-        return new TriageProfile(home, allowed, stacks, years, level, advanced);
+        return new TriageProfile(home, allowed, stacks, years, level, advanced)
+        {
+            PreferredModality = profile?.PreferredModality?.Trim() is { Length: > 0 } preferred ? preferred : null
+        };
     }
 
     /// <summary>Años de experiencia sumando periodos sin contar dos veces los que se solapan.</summary>

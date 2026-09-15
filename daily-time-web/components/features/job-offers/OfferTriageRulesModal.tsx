@@ -7,6 +7,7 @@ import { Eye, X } from "lucide-react";
 import { toast } from "sonner";
 import type { OfferTriageSettings, RescoreJobOffersResult } from "@/types/api";
 import { FormModal, FormModalSection } from "@/components/shared/form-modal";
+import { useOfferAiStatus } from "@/hooks/queries/use-offer-ai-status";
 import { useOfferTriageSettings } from "@/hooks/queries/use-offer-triage-settings";
 import { useJobOfferMutations } from "@/hooks/mutations/use-job-offer-mutations";
 import { useConfirm } from "@/providers/confirm-provider";
@@ -281,6 +282,48 @@ function RulesForm({
         </p>
       </FormModalSection>
 
+      <FormModalSection title="Análisis con IA (Gemini)">
+        <AiStatusLine />
+
+        <label className="inline-flex items-center gap-2 text-sm text-[var(--ink)]">
+          <input
+            type="checkbox"
+            {...form.register("aiEnabled")}
+            className="size-4 accent-[var(--accent)]"
+          />
+          Analizar automáticamente las ofertas A y B nuevas
+        </label>
+
+        <div className="flex flex-wrap gap-4">
+          <label className="flex flex-col gap-1 text-sm text-[var(--ink)]">
+            Modelo
+            <input {...form.register("aiModel")} className={cn(inputClass, "w-60 font-mono text-xs")} />
+            {errors.aiModel ? (
+              <span className="text-xs text-[var(--danger)]">{errors.aiModel.message}</span>
+            ) : null}
+          </label>
+          <label className="flex flex-col gap-1 text-sm text-[var(--ink)]">
+            Límite diario
+            <input
+              type="number"
+              min={0}
+              max={1000}
+              {...form.register("aiDailyLimit", { valueAsNumber: true })}
+              className={cn(inputClass, "w-24")}
+            />
+            {errors.aiDailyLimit ? (
+              <span className="text-xs text-[var(--danger)]">{errors.aiDailyLimit.message}</span>
+            ) : null}
+          </label>
+        </div>
+
+        <p className="text-xs text-[var(--muted)]">
+          A Gemini solo se envía la oferta y, de tu perfil, país, países aceptados, modalidad preferida,
+          stacks, años de experiencia y nivel de inglés; nunca nombre, correo, teléfono ni salario. El
+          análisis ajusta el puntaje entre +10 y −20, pero nunca descarta ni cambia estados.
+        </p>
+      </FormModalSection>
+
       {preview ? <PreviewPanel result={preview} /> : null}
 
       <div className="flex flex-col-reverse gap-2 border-t border-[var(--border)] pt-4 sm:flex-row sm:justify-end">
@@ -309,6 +352,65 @@ function RulesForm({
         </button>
       </div>
     </form>
+  );
+}
+
+function AiStatusLine() {
+  const status = useOfferAiStatus();
+  const { requestAiAnalysis } = useJobOfferMutations();
+
+  if (status.isLoading) {
+    return <p className="text-xs text-[var(--muted)]">Consultando el estado del análisis…</p>;
+  }
+  if (!status.data) {
+    return (
+      <p className="text-xs text-[var(--danger)]">
+        No se pudo consultar el estado del análisis{status.error ? `: ${String(status.error)}` : "."}
+      </p>
+    );
+  }
+
+  const s = status.data;
+  if (!s.configured) {
+    return (
+      <div className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        Falta la clave de Gemini. Créala gratis en aistudio.google.com/apikey y guárdala desde la carpeta
+        del repo con:
+        <code className="mt-1 block break-all font-mono">
+          dotnet user-secrets set &quot;Gemini:ApiKey&quot; &quot;TU_CLAVE&quot; --project dailyTimeApi
+        </code>
+        Luego reinicia los servicios.
+      </div>
+    );
+  }
+
+  const resetsAt = new Date(s.resetsAt).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
+  const details = [
+    s.isRunning ? "Analizando…" : null,
+    `Hoy: ${s.usedToday}/${s.dailyLimit}`,
+    `Pendientes A/B: ${s.pending}`,
+    `La cuota se renueva a las ${resetsAt}`,
+    s.pausedUntil ? `En pausa: ${s.pauseReason ?? "cuota agotada"}` : null,
+    s.lastError && !s.pausedUntil ? `Último error: ${s.lastError}` : null,
+  ].filter(Boolean);
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-[var(--surface-muted)] px-3 py-2 text-xs text-[var(--ink)]">
+      <span>{details.join(" · ")}</span>
+      <button
+        type="button"
+        onClick={() =>
+          requestAiAnalysis.mutate(undefined, {
+            onSuccess: () => toast.success("Análisis de pendientes en marcha"),
+            onError: (error) => toast.error(error.message),
+          })
+        }
+        disabled={requestAiAnalysis.isPending || s.isRunning || !s.enabled || s.pending === 0 || s.pausedUntil != null}
+        className="rounded-md border border-[var(--border)] bg-white px-2.5 py-1 text-xs text-[var(--ink)] hover:bg-[var(--surface-muted)] disabled:opacity-50"
+      >
+        Analizar pendientes ahora
+      </button>
+    </div>
   );
 }
 

@@ -29,6 +29,10 @@ public class JobOfferConfiguration : IEntityTypeConfiguration<JobOffer>
         builder.Property(x => x.PriorityTier).HasMaxLength(1);
         builder.Property(x => x.ScoreBreakdown); // nvarchar(max)
         builder.Property(x => x.ScoredAt).HasPrecision(3);
+        builder.Property(x => x.AiAnalysis); // nvarchar(max)
+        builder.Property(x => x.AiAnalyzedAt).HasPrecision(3);
+        builder.Property(x => x.AiModel).HasMaxLength(60);
+        builder.Property(x => x.AiError).HasMaxLength(300);
         builder.Property(x => x.SortOrder).HasDefaultValue(0);
         builder.Property(x => x.CapturedAt).HasPrecision(3);
         builder.Property(x => x.UpdatedAt).HasPrecision(3);
@@ -38,6 +42,7 @@ public class JobOfferConfiguration : IEntityTypeConfiguration<JobOffer>
         builder.HasIndex(x => x.SortOrder);
         builder.HasIndex(x => x.PriorityScore);
         builder.HasIndex(x => x.IsPinned);
+        builder.HasIndex(x => x.AiAnalyzedAt);
         builder.HasIndex(x => x.CapturedAt);
         builder.HasIndex(x => x.Country);
         builder.HasIndex(x => x.Language);

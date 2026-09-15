@@ -4,6 +4,7 @@ using dailyTimeApi.Models.Entities;
 using dailyTimeApi.Models.Response;
 using dailyTimeApi.Models.Triage;
 using dailyTimeApi.Repository.Interfaces;
+using dailyTimeApi.Services.Ai;
 using dailyTimeApi.Services.Interfaces;
 using dailyTimeApi.Services.Triage;
 
@@ -21,17 +22,20 @@ public class OfferTriageService : IOfferTriageService
     private readonly IOfferTriageConfigRepository _config;
     private readonly ICareerProfileRepository _profiles;
     private readonly IWorkExperienceRepository _experiences;
+    private readonly OfferAiState _aiState;
 
     public OfferTriageService(
         IJobOfferRepository offers,
         IOfferTriageConfigRepository config,
         ICareerProfileRepository profiles,
-        IWorkExperienceRepository experiences)
+        IWorkExperienceRepository experiences,
+        OfferAiState aiState)
     {
         _offers = offers;
         _config = config;
         _profiles = profiles;
         _experiences = experiences;
+        _aiState = aiState;
     }
 
     public enum TriageChange { None, Discarded, Restored, ProtectedByUser }
@@ -107,10 +111,7 @@ public class OfferTriageService : IOfferTriageService
     public static TriageChange ApplyEvaluation(
         JobOffer offer, OfferEvaluation evaluation, string? duplicateReason, DateTime nowUtc)
     {
-        offer.PriorityScore = evaluation.Score;
-        offer.PriorityTier = evaluation.Tier;
-        offer.ScoreBreakdown = JsonSerializer.Serialize(evaluation.Factors);
-        offer.ScoredAt = nowUtc;
+        ApplyScore(offer, evaluation, nowUtc);
 
         var reason = evaluation.DiscardReason ?? duplicateReason;
         if (offer.StatusSource == JobOfferStatusSources.User)
@@ -146,6 +147,22 @@ public class OfferTriageService : IOfferTriageService
         return TriageChange.None;
     }
 
+    /// <summary>Actualiza solo puntaje y prioridad, sin tocar el estado (lo usa el análisis con IA).</summary>
+    public static void ApplyScore(JobOffer offer, OfferEvaluation evaluation, DateTime nowUtc)
+    {
+        offer.PriorityScore = evaluation.Score;
+        offer.PriorityTier = evaluation.Tier;
+        offer.ScoreBreakdown = JsonSerializer.Serialize(evaluation.Factors);
+        offer.ScoredAt = nowUtc;
+    }
+
+    public async Task<(OfferTriageSettings Settings, TriageProfile Profile)> GetContextAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var settings = await LoadSettingsAsync(cancellationToken);
+        return (settings, await BuildProfileAsync(settings, cancellationToken));
+    }
+
     public static OfferTriageSettings NormalizeSettings(OfferTriageSettings settings)
     {
         if (settings.TierAMin is < 1 or > 100)
@@ -154,6 +171,13 @@ public class OfferTriageService : IOfferTriageService
             throw new ValidationException("El puntaje mínimo de B debe ser menor que el de A.");
         if (settings.MaxAgeDays is < 0 or > 365)
             throw new ValidationException("La antigüedad máxima debe estar entre 0 y 365 días.");
+        if (settings.AiDailyLimit is < 0 or > 1000)
+            throw new ValidationException("El límite diario de análisis debe estar entre 0 y 1000.");
+        var aiModel = string.IsNullOrWhiteSpace(settings.AiModel)
+            ? new OfferTriageSettings().AiModel
+            : settings.AiModel.Trim();
+        if (aiModel.Length > 60 || !aiModel.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '.' or '_'))
+            throw new ValidationException("Modelo de Gemini inválido (ej. gemini-3.5-flash-lite).");
 
         return new OfferTriageSettings
         {
@@ -168,6 +192,9 @@ public class OfferTriageService : IOfferTriageService
             ExcludedTitleKeywords = CleanList(settings.ExcludedTitleKeywords),
             BlockedCompanies = CleanList(settings.BlockedCompanies),
             PenalizeEnglishGap = settings.PenalizeEnglishGap,
+            AiEnabled = settings.AiEnabled,
+            AiDailyLimit = settings.AiDailyLimit,
+            AiModel = aiModel,
             TierAMin = settings.TierAMin,
             TierBMin = settings.TierBMin
         };
@@ -234,7 +261,11 @@ public class OfferTriageService : IOfferTriageService
             .ToList();
 
         if (!dryRun)
+        {
             await _offers.SaveChangesAsync(cancellationToken);
+            // Pueden haber aparecido ofertas A/B nuevas para analizar con IA.
+            _aiState.RequestRun();
+        }
 
         return response;
     }

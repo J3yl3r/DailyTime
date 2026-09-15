@@ -315,11 +315,49 @@ export type JobOffer = {
   priorityTier: PriorityTier | null;
   scoreFactors: ScoreFactor[];
   scoredAt: string | null;
+  /** Análisis con IA; null = sin análisis. */
+  aiAnalysis: OfferAiAnalysis | null;
+  aiAnalyzedAt: string | null;
+  aiModel: string | null;
+  /** Error del último intento de análisis. */
+  aiError: string | null;
   /** Fijada al arrastrar: va arriba del puntaje. */
   isPinned: boolean;
   sortOrder: number;
   capturedAt: string;
   updatedAt: string;
+};
+
+export type OfferAiVerdict = "apply" | "maybe" | "skip";
+
+export type OfferAiAnalysis = {
+  verdict: OfferAiVerdict | string;
+  summary: string;
+  mandatoryRequirements: { requirement: string; met: "yes" | "partial" | "no" | "unknown" | string }[];
+  missingMustHaves: string[];
+  seniority: string;
+  /** 0 = no indicado. */
+  requiredYears: number;
+  englishLevel: string;
+  workModality: string;
+  locationRestriction: string;
+  salary: { min: number; max: number; currency: string; period: string };
+  redFlags: string[];
+};
+
+export type OfferAiStatus = {
+  configured: boolean;
+  enabled: boolean;
+  model: string;
+  dailyLimit: number;
+  usedToday: number;
+  pending: number;
+  isRunning: boolean;
+  pausedUntil: string | null;
+  pauseReason: string | null;
+  lastError: string | null;
+  lastRunAt: string | null;
+  resetsAt: string;
 };
 
 export type PriorityTier = "A" | "B" | "C";
@@ -345,6 +383,9 @@ export type OfferTriageSettings = {
   excludedTitleKeywords: string[];
   blockedCompanies: string[];
   penalizeEnglishGap: boolean;
+  aiEnabled: boolean;
+  aiDailyLimit: number;
+  aiModel: string;
   tierAMin: number;
   tierBMin: number;
 };
