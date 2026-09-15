@@ -28,7 +28,7 @@ public class OfferAiTests
     [Theory]
     [InlineData("apply", 0, 10)]
     [InlineData("maybe", 0, 0)]
-    [InlineData("skip", 0, -15)]
+    [InlineData("skip", 1, -15)]
     [InlineData("skip", 2, -20)]
     public void AiFactor_AdjustsScoreByVerdictAndMissingRequirements(string verdict, int missing, int expected)
     {
@@ -37,6 +37,25 @@ public class OfferAiTests
             Verdict = verdict,
             Summary = "Resumen",
             MissingMustHaves = Enumerable.Range(1, missing).Select(i => $"Requisito {i}").ToList()
+        };
+
+        var result = OfferScorer.Evaluate(Offer(OfferAiJson.Serialize(analysis)), Profile, new OfferTriageSettings(), Now);
+
+        Assert.Equal(expected, result.Factors.Single(f => f.Key == "ai").Points);
+    }
+
+    [Theory]
+    [InlineData("", "no", -15)]
+    [InlineData("Residencia en México obligatoria", "unknown", -15)]
+    [InlineData("", "unknown", 0)]
+    public void AiFactor_SkipOnlyPenalizesWhenBackedByUnmetRequirementOrRestriction(string restriction, string met, int expected)
+    {
+        var analysis = new OfferAiAnalysis
+        {
+            Verdict = "skip",
+            Summary = "Resumen",
+            LocationRestriction = restriction,
+            MandatoryRequirements = [new OfferAiRequirement { Requirement = "5 años de experiencia", Met = met }]
         };
 
         var result = OfferScorer.Evaluate(Offer(OfferAiJson.Serialize(analysis)), Profile, new OfferTriageSettings(), Now);

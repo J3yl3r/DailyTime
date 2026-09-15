@@ -363,7 +363,8 @@ public static class OfferScorer
 
     /// <summary>
     /// Ajuste por el análisis con IA: +10 si recomienda postular, −15 si no encaja y −5 más si faltan
-    /// dos o más requisitos obligatorios. Nunca descarta: solo ordena.
+    /// dos o más requisitos obligatorios. Nunca descarta: solo ordena. Un "no encaja" sin requisito
+    /// incumplido ni restricción de ubicación solo refleja datos ausentes del perfil y cuenta como dudosa.
     /// </summary>
     private static ScoreFactor? ScoreAi(string? analysisJson)
     {
@@ -371,7 +372,12 @@ public static class OfferScorer
         if (analysis is null)
             return null;
 
-        var points = analysis.Verdict switch
+        var backedSkip = analysis.MissingMustHaves.Count > 0
+                         || analysis.MandatoryRequirements.Any(r => r.Met == "no")
+                         || !string.IsNullOrWhiteSpace(analysis.LocationRestriction);
+        var verdictKey = analysis.Verdict == "skip" && !backedSkip ? "maybe" : analysis.Verdict;
+
+        var points = verdictKey switch
         {
             "apply" => AiApplyBonus,
             "skip" => AiSkipPenalty,
@@ -380,7 +386,7 @@ public static class OfferScorer
         if (analysis.MissingMustHaves.Count >= 2)
             points -= 5;
 
-        var verdict = analysis.Verdict switch
+        var verdict = verdictKey switch
         {
             "apply" => "Recomienda postular",
             "skip" => "No encaja",
