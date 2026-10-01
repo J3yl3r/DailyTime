@@ -3,6 +3,7 @@ using dailyTimeApi.Models.Entities;
 using dailyTimeApi.Models.Request;
 using dailyTimeApi.Models.Response;
 using dailyTimeApi.Repository.Interfaces;
+using dailyTimeApi.Services.Google;
 using dailyTimeApi.Services.Interfaces;
 
 namespace dailyTimeApi.Services
@@ -16,6 +17,7 @@ namespace dailyTimeApi.Services
         private readonly IPersonRepository _personRepository;
         private readonly IProjectRepository _projectRepository;
         private readonly ICompanyRepository _companyRepository;
+        private readonly IGoogleSyncNotifier _googleSync;
 
         public NoteService(
             INoteRepository repository,
@@ -23,7 +25,8 @@ namespace dailyTimeApi.Services
             IWorkItemCategoryRepository categoryRepository,
             IPersonRepository personRepository,
             IProjectRepository projectRepository,
-            ICompanyRepository companyRepository)
+            ICompanyRepository companyRepository,
+            IGoogleSyncNotifier googleSync)
         {
             _repository = repository;
             _statusRepository = statusRepository;
@@ -31,6 +34,7 @@ namespace dailyTimeApi.Services
             _personRepository = personRepository;
             _projectRepository = projectRepository;
             _companyRepository = companyRepository;
+            _googleSync = googleSync;
         }
 
         public async Task<IReadOnlyList<NoteResponse>> GetRootsByDateRangeAsync(
@@ -93,6 +97,8 @@ namespace dailyTimeApi.Services
 
             await _repository.AddAsync(entity, cancellationToken);
             await _repository.SaveChangesAsync(cancellationToken);
+            // Que el calendario de Google refleje el cambio sin esperar al ciclo automático.
+            _googleSync.RequestSync();
 
             entity.Status = status;
             entity.Category = category;
@@ -143,6 +149,8 @@ namespace dailyTimeApi.Services
 
             _repository.Update(entity);
             await _repository.SaveChangesAsync(cancellationToken);
+            // Que el calendario de Google refleje el cambio sin esperar al ciclo automático.
+            _googleSync.RequestSync();
 
             entity.Status = status;
             entity.Category = category;
@@ -161,8 +169,11 @@ namespace dailyTimeApi.Services
             if (children.Count > 0)
                 throw new ValidationException("No se puede eliminar una nota que tiene subnotas.");
 
+            // La lápida viaja en el mismo SaveChanges que el borrado: o se van los dos, o ninguno.
+            await _googleSync.EnqueueDeletionAsync(entity, cancellationToken);
             _repository.Remove(entity);
             await _repository.SaveChangesAsync(cancellationToken);
+            _googleSync.RequestSync();
         }
 
         private async Task<WorkItemStatus> ResolveStatusAsync(
@@ -395,7 +406,10 @@ namespace dailyTimeApi.Services
                     IsActive = entity.Company.IsActive
                 },
             CreatedAt = entity.CreatedAt,
-            UpdatedAt = entity.UpdatedAt
+            UpdatedAt = entity.UpdatedAt,
+            GoogleEventId = entity.GoogleEventId,
+            SyncSource = entity.SyncSource,
+            GoogleColor = entity.GoogleColor
         };
 
         private static void ValidateSchedule(

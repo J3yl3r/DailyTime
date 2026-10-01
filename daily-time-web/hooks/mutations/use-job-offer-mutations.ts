@@ -8,6 +8,7 @@ import {
   deleteJobOffer,
   previewOfferTriage,
   reorderJobOffers,
+  requestDayAiAnalysis,
   requestPendingAiAnalysis,
   rescoreJobOffers,
   setJobOfferPinned,
@@ -94,9 +95,15 @@ export function useJobOfferMutations() {
     onSuccess: (status) => queryClient.setQueryData(jobOfferKeys.aiStatus(), status),
   });
 
+  const analyzeDayWithAi = useMutation({
+    mutationFn: (date: string) => requestDayAiAnalysis(date),
+    onSuccess: (result) => queryClient.setQueryData(jobOfferKeys.aiStatus(), result.status),
+  });
+
   return {
     analyzeWithAi,
     requestAiAnalysis,
+    analyzeDayWithAi,
     updateStatus,
     bulkUpdateStatus,
     reorder,

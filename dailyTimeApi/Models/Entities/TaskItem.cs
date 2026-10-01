@@ -1,6 +1,6 @@
 ﻿namespace dailyTimeApi.Models.Entities;
 
-public class TaskItem
+public class TaskItem : IGoogleSyncedItem
 {
     public int Id { get; set; }
     public string Title { get; set; } = string.Empty;
@@ -20,6 +20,14 @@ public class TaskItem
     public int? PersonId { get; set; }
     public int? ProjectId { get; set; }
     public int? CompanyId { get; set; }
+
+    // --- Sincronización con Google Calendar ---
+    public string? GoogleEventId { get; set; }
+    public string? GoogleEtag { get; set; }
+    public DateTime? GoogleSyncedAt { get; set; }
+    public DateTime? GoogleUpdatedAt { get; set; }
+    public string? SyncSource { get; set; }
+    public string? GoogleColor { get; set; }
 
     public TaskItem? Parent { get; set; }
     public WorkItemStatus? Status { get; set; }

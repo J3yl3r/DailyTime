@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "daily-time-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "daily-time-web", "run", "dev"],
+      "port": 4010
+    }
+  ]
+}

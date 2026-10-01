@@ -20,7 +20,7 @@ import {
   startOfYear,
 } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarSync, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import type { Note, TaskItem } from "@/types/api";
 import { useTaskItemsByDate } from "@/hooks/queries/use-task-items";
@@ -32,6 +32,17 @@ import { cn } from "@/lib/utils/cn";
 import { FormModal } from "@/components/shared/form-modal";
 import { TaskItemForm } from "@/components/features/tasks/TaskItemForm";
 import { NoteForm } from "@/components/features/notes/NoteForm";
+import { GoogleCalendarCard } from "@/components/features/calendar/GoogleCalendarCard";
+import {
+  ScheduleBlock,
+  type ScheduleItem,
+} from "@/components/features/calendar/ScheduleBlock";
+import { layoutOverlapping, type ScheduledEntry } from "@/lib/calendar/layout";
+import {
+  isFromGoogle,
+  itemAppearance,
+  statusMarkColor,
+} from "@/lib/calendar/appearance";
 import { useVoiceUiBridge } from "@/providers/voice-ui-bridge";
 import type { VoiceCalendarCommand } from "@/types/voice";
 
@@ -67,6 +78,16 @@ function timeToMinutes(value: string) {
   return hours * 60 + minutes;
 }
 
+/** Recorta el bloque a la franja visible; devuelve [] si no queda nada que pintar. */
+function toScheduleEntry(entry: ScheduleItem): ScheduledEntry<ScheduleItem>[] {
+  const { startTime, endTime } = entry.item;
+  if (!startTime || !endTime) return [];
+  const start = Math.max(timeToMinutes(startTime), HOUR_START * 60);
+  const end = Math.min(timeToMinutes(endTime), (HOUR_END + 1) * 60);
+  if (end <= start) return [];
+  return [{ item: entry, startMinutes: start, endMinutes: end }];
+}
+
 export function CalendarView() {
   const { registerCalendarHandler } = useVoiceUiBridge();
   const [mode, setMode] = useState<CalendarMode>("week");
@@ -74,6 +95,7 @@ export function CalendarView() {
   const [createTarget, setCreateTarget] = useState<CreateTarget | null>(null);
   const [scheduleTask, setScheduleTask] = useState<TaskItem | null>(null);
   const [scheduleNote, setScheduleNote] = useState<Note | null>(null);
+  const [googleOpen, setGoogleOpen] = useState(false);
 
   const days = useMemo(() => {
     if (mode === "day") return [anchorDate];
@@ -278,10 +300,35 @@ export function CalendarView() {
               </button>
             ))}
           </div>
-          <p className="max-w-sm text-xs text-[var(--muted)]">
-            Las tareas con horario aparecen en la grilla. Haz clic en una tarea
-            para cambiar su inicio y final.
-          </p>
+          <button
+            type="button"
+            onClick={() => setGoogleOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-sm text-[var(--ink)] hover:bg-[var(--surface-muted)]"
+          >
+            <CalendarSync className="size-4" />
+            Google
+          </button>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--muted)]">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-2.5 rounded-sm border border-[var(--accent)]/30 bg-[var(--accent-soft)]" />
+              Tarea
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-2.5 rounded-sm border border-amber-300/70 bg-amber-100" />
+              Nota
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="flex gap-px">
+                <span className="size-2.5 rounded-sm" style={{ background: "#a4bdfc" }} />
+                <span className="size-2.5 rounded-sm" style={{ background: "#7ae7bf" }} />
+              </span>
+              De Google, con su color
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2.5 w-[3px] rounded-full bg-[var(--muted)]" />
+              La marca vertical es el estado
+            </span>
+          </div>
         </div>
       </div>
 
@@ -457,8 +504,6 @@ export function CalendarView() {
                 const isCurrentDay = isSameDay(day, now);
                 const scheduledTasks = scheduledTasksByDate.get(apiDate) ?? [];
                 const scheduledNotes = scheduledNotesByDate.get(apiDate) ?? [];
-                const hasBothSchedules =
-                  scheduledTasks.length > 0 && scheduledNotes.length > 0;
                 return (
                   <div
                     key={`grid-${apiDate}`}
@@ -475,92 +520,48 @@ export function CalendarView() {
                         aria-label={`Crear en ${apiDate} a las ${formatHour(hour)}`}
                       />
                     ))}
-                    {scheduledTasks.map((task) => {
-                      const startTime = task.startTime;
-                      const endTime = task.endTime;
-                      if (!startTime || !endTime) return null;
-                      const start = Math.max(
-                        timeToMinutes(startTime),
-                        HOUR_START * 60
-                      );
-                      const end = Math.min(
-                        timeToMinutes(endTime),
-                        (HOUR_END + 1) * 60
-                      );
-                      if (end <= start) return null;
-                      const top = (start - HOUR_START * 60) * (ROW_HEIGHT / 60);
-                      const height = Math.max(
-                        24,
-                        (end - start) * (ROW_HEIGHT / 60)
-                      );
-                      return (
-                        <button
-                          key={`scheduled-${task.id}`}
-                          type="button"
-                          onClick={() => setScheduleTask(task)}
-                          className={cn(
-                            "absolute z-10 overflow-hidden rounded-md border-l-4 border-[var(--accent-strong)] bg-[var(--accent-soft)] px-2 py-1 text-left text-[11px] text-[var(--accent-strong)] shadow-sm hover:ring-2 hover:ring-[var(--accent)]/30",
-                            hasBothSchedules
-                              ? "right-[50%] left-1"
-                              : "right-1 left-1"
+                    {layoutOverlapping([
+                      ...scheduledTasks.flatMap((task) =>
+                        toScheduleEntry({ kind: "task", item: task }),
+                      ),
+                      ...scheduledNotes.flatMap((note) =>
+                        toScheduleEntry({ kind: "note", item: note }),
+                      ),
+                    ]).map(
+                      ({
+                        item: entry,
+                        startMinutes,
+                        endMinutes,
+                        left,
+                        width,
+                        columnCount,
+                      }) => (
+                        <ScheduleBlock
+                          key={`${entry.kind}-${entry.item.id}`}
+                          entry={entry}
+                          startTime={entry.item.startTime ?? ""}
+                          endTime={entry.item.endTime ?? ""}
+                          top={
+                            (startMinutes - HOUR_START * 60) * (ROW_HEIGHT / 60)
+                          }
+                          height={Math.max(
+                            24,
+                            (endMinutes - startMinutes) * (ROW_HEIGHT / 60),
                           )}
-                          style={{ top, height }}
-                          title={`${task.title} · ${startTime.slice(0, 5)}–${endTime.slice(0, 5)}`}
-                        >
-                          <span className="block truncate font-semibold">
-                            {task.title}
-                          </span>
-                          <span className="block truncate text-[10px]">
-                            {startTime.slice(0, 5)}–{endTime.slice(0, 5)}
-                          </span>
-                        </button>
-                      );
-                    })}
-                    {scheduledNotes.map((note) => {
-                      const startTime = note.startTime;
-                      const endTime = note.endTime;
-                      if (!startTime || !endTime) return null;
-                      const start = Math.max(
-                        timeToMinutes(startTime),
-                        HOUR_START * 60
-                      );
-                      const end = Math.min(
-                        timeToMinutes(endTime),
-                        (HOUR_END + 1) * 60
-                      );
-                      if (end <= start) return null;
-                      const top = (start - HOUR_START * 60) * (ROW_HEIGHT / 60);
-                      const height = Math.max(
-                        24,
-                        (end - start) * (ROW_HEIGHT / 60)
-                      );
-                      const label = note.title?.trim() || note.content;
-                      return (
-                        <button
-                          key={`scheduled-note-${note.id}`}
-                          type="button"
-                          onClick={() => setScheduleNote(note)}
-                          className={cn(
-                            "absolute z-20 overflow-hidden rounded-md border-l-4 border-[var(--note)] bg-amber-100 px-2 py-1 text-left text-[11px] text-[var(--note)] shadow-sm hover:ring-2 hover:ring-amber-400/40",
-                            hasBothSchedules
-                              ? "right-1 left-[50%]"
-                              : "right-1 left-1"
-                          )}
-                          style={{ top, height }}
-                          title={`${label} · ${startTime.slice(0, 5)}–${endTime.slice(0, 5)}`}
-                        >
-                          <span className="block truncate font-semibold">
-                            {label}
-                          </span>
-                          <span className="block truncate text-[10px]">
-                            {startTime.slice(0, 5)}–{endTime.slice(0, 5)}
-                          </span>
-                        </button>
-                      );
-                    })}
+                          left={left}
+                          width={width}
+                          columnCount={columnCount}
+                          onClick={() =>
+                            entry.kind === "task"
+                              ? setScheduleTask(entry.item)
+                              : setScheduleNote(entry.item)
+                          }
+                        />
+                      ),
+                    )}
                     {showNowLine && isCurrentDay && (
                       <div
-                        className="pointer-events-none absolute right-0 left-0 z-10"
+                        className="pointer-events-none absolute right-0 left-0 z-20"
                         style={{ top: nowTop }}
                       >
                         <div className="relative h-0.5 bg-red-500">
@@ -701,6 +702,16 @@ export function CalendarView() {
           />
         )}
       </FormModal>
+
+      <FormModal
+        open={googleOpen}
+        onOpenChange={setGoogleOpen}
+        title="Google Calendar"
+        description="Sincronización en los dos sentidos entre este calendario y el de tu cuenta de Google."
+        size="sm"
+      >
+        <GoogleCalendarCard />
+      </FormModal>
     </div>
   );
 }
@@ -822,13 +833,21 @@ function MonthCalendar({
                         : onOpenNote(entry.item)
                     }
                     className={cn(
-                      "flex min-w-0 items-center gap-1 rounded px-1.5 py-0.5 text-left text-[10px] font-medium",
-                      entry.kind === "task"
-                        ? "bg-[var(--accent-soft)] text-[var(--accent-strong)]"
-                        : "bg-amber-100 text-[var(--note)]"
+                      "flex min-w-0 items-center gap-1 rounded border px-1.5 py-0.5 text-left text-[10px] font-medium",
+                      itemAppearance(entry.item, entry.kind).className
                     )}
-                    title={entry.label}
+                    style={itemAppearance(entry.item, entry.kind).style}
+                    title={`${entry.label}${
+                      isFromGoogle(entry.item) ? " · de Google Calendar" : ""
+                    }${entry.item.status ? ` · ${entry.item.status.name}` : ""}`}
                   >
+                    {statusMarkColor(entry.item) ? (
+                      <span
+                        aria-hidden
+                        className="h-2.5 w-[3px] shrink-0 rounded-full"
+                        style={{ backgroundColor: statusMarkColor(entry.item)! }}
+                      />
+                    ) : null}
                     {entry.time && (
                       <span className="shrink-0 font-semibold">{entry.time}</span>
                     )}
@@ -870,9 +889,20 @@ function YearCalendar({
     start: startOfYear(anchorDate),
     end: endOfYear(anchorDate),
   });
-  const taskDates = new Set(tasks.map((task) => task.workDate));
+  // Tres puntos posibles por día: lo tuyo, lo traído de Google y las notas. El estado no
+  // cabe a este tamaño, así que aquí solo se distingue el origen.
+  const taskDates = new Set(
+    tasks.flatMap((task) => (isFromGoogle(task) ? [] : [task.workDate]))
+  );
+  const googleDates = new Set(
+    [...tasks, ...notes].flatMap((item) =>
+      isFromGoogle(item) && item.workDate ? [item.workDate] : []
+    )
+  );
   const noteDates = new Set(
-    notes.flatMap((note) => (note.workDate ? [note.workDate] : []))
+    notes.flatMap((note) =>
+      !isFromGoogle(note) && note.workDate ? [note.workDate] : []
+    )
   );
 
   return (
@@ -913,6 +943,7 @@ function YearCalendar({
                     return <span key={apiDate} className="h-7" />;
                   }
                   const hasTask = taskDates.has(apiDate);
+                  const hasGoogle = googleDates.has(apiDate);
                   const hasNote = noteDates.has(apiDate);
                   return (
                     <button
@@ -927,10 +958,13 @@ function YearCalendar({
                       )}
                     >
                       {format(day, "d")}
-                      {(hasTask || hasNote) && (
+                      {(hasTask || hasGoogle || hasNote) && (
                         <span className="absolute bottom-0 flex gap-0.5">
                           {hasTask && (
                             <span className="size-1 rounded-full bg-[var(--task)]" />
+                          )}
+                          {hasGoogle && (
+                            <span className="size-1 rounded-full bg-slate-400" />
                           )}
                           {hasNote && (
                             <span className="size-1 rounded-full bg-[var(--note)]" />

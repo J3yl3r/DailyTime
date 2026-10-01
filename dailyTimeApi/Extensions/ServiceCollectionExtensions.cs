@@ -3,6 +3,7 @@ using dailyTimeApi.Repository.Interfaces;
 
 using dailyTimeApi.Services;
 using dailyTimeApi.Services.Ai;
+using dailyTimeApi.Services.Google;
 using dailyTimeApi.Services.Interfaces;
 using Microsoft.Extensions.Options;
 
@@ -38,6 +39,7 @@ namespace dailyTimeApi.Extensions
             services.AddScoped<ICareerProfileRepository, CareerProfileRepository>();
             services.AddScoped<IScrapeScheduleRepository, ScrapeScheduleRepository>();
             services.AddScoped<IOfferTriageConfigRepository, OfferTriageConfigRepository>();
+            services.AddScoped<IGoogleCalendarRepository, GoogleCalendarRepository>();
             services.AddScoped<ITaskItemService, TaskItemService>();
             services.AddScoped<INoteService, NoteService>();
             services.AddScoped<ITimeEntryService, TimeEntryService>();
@@ -75,6 +77,19 @@ namespace dailyTimeApi.Extensions
             services.AddSingleton<OfferAiState>();
             services.AddScoped<IOfferAiService, OfferAiService>();
             services.AddHostedService<OfferAiBackgroundService>();
+
+            // Google Calendar. ClientId/ClientSecret van en user secrets (Google:ClientId, Google:ClientSecret).
+            services.AddOptions<GoogleCalendarOptions>().BindConfiguration(GoogleCalendarOptions.SectionName);
+            services.AddHttpClient<IGoogleOAuthClient, GoogleOAuthClient>(client =>
+                client.Timeout = TimeSpan.FromSeconds(30));
+            services.AddHttpClient<IGoogleCalendarClient, GoogleCalendarClient>(client =>
+                client.Timeout = TimeSpan.FromSeconds(60));
+            services.AddSingleton<GoogleSyncState>();
+            services.AddSingleton<GoogleOAuthStateStore>();
+            services.AddScoped<IGoogleCalendarSyncService, GoogleCalendarSyncService>();
+            services.AddScoped<IGoogleCalendarService, GoogleCalendarService>();
+            services.AddScoped<IGoogleSyncNotifier, GoogleSyncNotifier>();
+            services.AddHostedService<GoogleCalendarSyncBackgroundService>();
             return services;
         }
     }

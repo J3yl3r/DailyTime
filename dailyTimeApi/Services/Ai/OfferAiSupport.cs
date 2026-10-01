@@ -164,6 +164,16 @@ public sealed class OfferAiState
     public DateTime? LastRunAt { get; private set; }
     public bool IsRunning { get; private set; }
 
+    /// <summary>Hay una pasada pedida que el servicio en segundo plano aún no empezó.</summary>
+    public bool IsRunRequested
+    {
+        get
+        {
+            lock (_gate)
+                return _runRequested.Task.IsCompleted;
+        }
+    }
+
     public void RequestRun()
     {
         lock (_gate)

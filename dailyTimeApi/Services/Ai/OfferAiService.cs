@@ -21,6 +21,13 @@ public interface IOfferAiService
     /// <summary>Analiza (o reanaliza) una oferta ahora, sea cual sea su prioridad.</summary>
     Task<JobOfferResponse> AnalyzeOneAsync(int id, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Pone en cola las ofertas activas capturadas ese día que no tienen análisis, incluidas las que
+    /// fallaron (esas no se reintentan solas). Las ya analizadas no se repiten para no gastar cuota.
+    /// Devuelve cuántas quedaron en cola; se analizan en segundo plano, las más recientes primero.
+    /// </summary>
+    Task<int> QueueCapturedOnAsync(DateOnly day, CancellationToken cancellationToken = default);
+
     void RequestProcessing();
 }
 
@@ -71,7 +78,8 @@ public class OfferAiService : IOfferAiService
             Model = settings.AiModel,
             UsedToday = await _offers.CountAiAnalyzedSinceAsync(OfferAiClock.DayStartUtc(now), cancellationToken),
             Pending = await _offers.CountPendingAiAnalysisAsync(cancellationToken),
-            IsRunning = _state.IsRunning,
+            // Una pasada pedida cuenta como en curso: si no, justo tras pedirla la web lee "parado" y deja de sondear.
+            IsRunning = _state.IsRunning || _state.IsRunRequested,
             PausedUntil = _state.PausedUntilUtc,
             PauseReason = _state.PauseReason,
             LastError = _state.LastError,
@@ -144,6 +152,21 @@ public class OfferAiService : IOfferAiService
             throw new ValidationException(offer.AiError);
 
         return await _jobOffers.GetByIdAsync(id, cancellationToken);
+    }
+
+    public async Task<int> QueueCapturedOnAsync(DateOnly day, CancellationToken cancellationToken = default)
+    {
+        if (!_analyzer.IsConfigured)
+            throw new ValidationException("Falta la clave de Gemini: configúrala en user secrets como Gemini:ApiKey.");
+        if (!(await _triage.GetSettingsAsync(cancellationToken)).AiEnabled)
+            throw new ValidationException("El análisis con IA está desactivado en las reglas de prioridad.");
+
+        var date = day.ToDateTime(TimeOnly.MinValue);
+        await _offers.RequeueFailedAiAnalysisCapturedOnAsync(date, cancellationToken);
+        var queued = await _offers.CountPendingAiAnalysisCapturedOnAsync(date, cancellationToken);
+        if (queued > 0)
+            _state.RequestRun();
+        return queued;
     }
 
     /// <summary>Devuelve false si hay que detener la pasada (cuota, clave inválida, sin conexión).</summary>

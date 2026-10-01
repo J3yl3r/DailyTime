@@ -200,11 +200,25 @@ public class JobOfferRepository : IJobOfferRepository
     public Task<int> CountAiAnalyzedSinceAsync(DateTime sinceUtc, CancellationToken cancellationToken = default) =>
         _context.JobOffers.CountAsync(x => x.AiAnalyzedAt != null && x.AiAnalyzedAt >= sinceUtc, cancellationToken);
 
+    public Task<int> RequeueFailedAiAnalysisCapturedOnAsync(DateTime day, CancellationToken cancellationToken = default) =>
+        ApplyFilter(ActiveOffers().Where(x => x.AiError != null), CapturedOn(day))
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.AiAnalyzedAt, (DateTime?)null)
+                .SetProperty(x => x.AiError, (string?)null), cancellationToken);
+
+    public Task<int> CountPendingAiAnalysisCapturedOnAsync(DateTime day, CancellationToken cancellationToken = default) =>
+        ApplyFilter(PendingAiAnalysis(), CapturedOn(day)).CountAsync(cancellationToken);
+
+    /// <summary>Mismo rango que el filtro de fecha de captura de la lista con desde = hasta = ese día.</summary>
+    private static JobOfferFilterRequest CapturedOn(DateTime day) =>
+        new() { CapturedFrom = day.Date, CapturedTo = day.Date };
+
     /// <summary>Ofertas activas (nuevas o vistas) sin análisis, de cualquier prioridad.</summary>
     private IQueryable<JobOffer> PendingAiAnalysis() =>
-        _context.JobOffers.Where(x =>
-            x.AiAnalyzedAt == null
-            && (x.Status == "new" || x.Status == "seen"));
+        ActiveOffers().Where(x => x.AiAnalyzedAt == null);
+
+    private IQueryable<JobOffer> ActiveOffers() =>
+        _context.JobOffers.Where(x => x.Status == "new" || x.Status == "seen");
 
     public async Task<IReadOnlyList<JobOffer>> GetAllForTriageAsync(
         bool tracked, CancellationToken cancellationToken = default)

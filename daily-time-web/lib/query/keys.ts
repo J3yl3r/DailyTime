@@ -124,3 +124,8 @@ export const jobOfferKeys = {
   aiStatus: () => [...jobOfferKeys.all, "ai-status"] as const,
   detail: (id: number) => [...jobOfferKeys.all, "detail", id] as const,
 };
+export const googleCalendarKeys = {
+  all: ["google-calendar"] as const,
+  status: () => [...googleCalendarKeys.all, "status"] as const,
+  calendars: () => [...googleCalendarKeys.all, "calendars"] as const,
+};

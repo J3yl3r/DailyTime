@@ -3,6 +3,7 @@ import type {
   JobOffer,
   JobOfferFilters,
   JobOfferMeta,
+  OfferAiQueueResult,
   OfferAiStatus,
   OfferTriageSettings,
   RescoreJobOffersResult,
@@ -130,6 +131,17 @@ export function getOfferAiStatus() {
 /** Pide analizar ya las ofertas activas pendientes (corre en segundo plano en la API). */
 export function requestPendingAiAnalysis() {
   return apiClient.post<OfferAiStatus>("/api/job-offers/ai/analyze-pending", {});
+}
+
+/**
+ * Pone en cola las ofertas activas capturadas ese día (YYYY-MM-DD) sin análisis o cuyo análisis falló.
+ * Las ya analizadas no se repiten. Corre en segundo plano en la API.
+ */
+export function requestDayAiAnalysis(date: string) {
+  return apiClient.post<OfferAiQueueResult>(
+    `/api/job-offers/ai/analyze-day?date=${encodeURIComponent(date)}`,
+    {},
+  );
 }
 
 /** Analiza o reanaliza una oferta y espera el resultado. */

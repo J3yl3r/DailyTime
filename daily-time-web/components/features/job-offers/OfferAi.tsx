@@ -1,10 +1,16 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Check, CircleHelp, Minus, Sparkles, TriangleAlert, X } from "lucide-react";
 import { toast } from "sonner";
 import type { JobOffer, OfferAiAnalysis } from "@/types/api";
 import { DataListBadge } from "@/components/ui/DataList";
 import { useJobOfferMutations } from "@/hooks/mutations/use-job-offer-mutations";
+import { useOfferAiStatus } from "@/hooks/queries/use-offer-ai-status";
+import { jobOfferKeys } from "@/lib/query/keys";
+import { todayApiDate } from "@/lib/utils/date";
+import { cn } from "@/lib/utils/cn";
 
 export const AI_VERDICTS: Record<string, { label: string; short: string; color: string }> = {
   apply: { label: "Recomienda postular", short: "IA: postular", color: "#16A34A" },
@@ -56,6 +62,61 @@ export function OfferAiBadge({ offer }: { offer: JobOffer }) {
     <span title={offer.aiAnalysis.summary || verdict.label} className="inline-flex">
       <DataListBadge color={verdict.color}>{verdict.short}</DataListBadge>
     </span>
+  );
+}
+
+/**
+ * Pone en cola las ofertas activas capturadas hoy sin análisis o cuyo análisis falló (esas no se
+ * reintentan solas). Las ya analizadas no se repiten para no gastar la cuota gratuita.
+ */
+export function AnalyzeTodayWithAiButton() {
+  const status = useOfferAiStatus();
+  const { analyzeDayWithAi } = useJobOfferMutations();
+  const queryClient = useQueryClient();
+  const isRunning = status.data?.isRunning ?? false;
+  const wasRunning = useRef(isRunning);
+
+  // La API analiza en segundo plano y el estado se sondea mientras tanto: cada sondeo refresca la lista
+  // (y una última vez al terminar) para que los análisis aparezcan sin recargar.
+  useEffect(() => {
+    if (isRunning || wasRunning.current) {
+      queryClient.invalidateQueries({ queryKey: [...jobOfferKeys.all, "list"] });
+    }
+    wasRunning.current = isRunning;
+  }, [status.dataUpdatedAt, isRunning, queryClient]);
+
+  const analyzeToday = () =>
+    analyzeDayWithAi.mutate(todayApiDate(), {
+      onSuccess: ({ queued, status: current }) => {
+        if (queued === 0) {
+          toast.info("No hay ofertas activas de hoy pendientes de análisis.");
+          return;
+        }
+        const count = queued === 1 ? "1 oferta de hoy" : `${queued} ofertas de hoy`;
+        toast.success(
+          current.pausedUntil
+            ? `${count} en cola. El análisis está en pausa (${current.pauseReason ?? "cuota agotada"}) y seguirá solo al renovarse la cuota.`
+            : `${count} en cola: se analizan en segundo plano.`,
+        );
+      },
+      onError: (error) => toast.error(error.message),
+    });
+
+  return (
+    <button
+      type="button"
+      onClick={analyzeToday}
+      disabled={analyzeDayWithAi.isPending}
+      title={
+        isRunning
+          ? "Gemini está analizando en segundo plano. Puedes sumar las de hoy igualmente."
+          : "Analiza con Gemini las ofertas activas capturadas hoy que no tienen análisis o cuyo análisis falló."
+      }
+      className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] px-3 py-2 text-sm text-[var(--ink)] hover:bg-[var(--surface-muted)] disabled:opacity-50"
+    >
+      <Sparkles className={cn("size-4", isRunning && "animate-pulse text-[var(--accent)]")} />
+      {analyzeDayWithAi.isPending ? "Poniendo en cola…" : "Analizar hoy con IA"}
+    </button>
   );
 }
 

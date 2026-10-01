@@ -25,4 +25,10 @@ public class TaskItemResponse
     public CompanySummaryResponse? Company { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+    /// <summary>Evento espejo en Google Calendar, si el elemento está sincronizado.</summary>
+    public string? GoogleEventId { get; set; }
+    /// <summary>local | google — dónde nació el elemento.</summary>
+    public string? SyncSource { get; set; }
+    /// <summary>Color del evento en Google, en hexadecimal; solo en lo que viene de allí.</summary>
+    public string? GoogleColor { get; set; }
 }

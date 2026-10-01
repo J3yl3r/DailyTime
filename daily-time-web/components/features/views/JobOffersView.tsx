@@ -37,7 +37,11 @@ import {
   TIER_LABELS,
 } from "@/components/features/job-offers/OfferScore";
 import { OfferTriageRulesModal } from "@/components/features/job-offers/OfferTriageRulesModal";
-import { OfferAiBadge, OfferAiPanel } from "@/components/features/job-offers/OfferAi";
+import {
+  AnalyzeTodayWithAiButton,
+  OfferAiBadge,
+  OfferAiPanel,
+} from "@/components/features/job-offers/OfferAi";
 import { todayApiDate } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
 
@@ -471,6 +475,7 @@ export function JobOffersView() {
           recuperables.
         </p>
         <div className="flex shrink-0 flex-wrap gap-2">
+          <AnalyzeTodayWithAiButton />
           <button
             type="button"
             onClick={rescoreAll}

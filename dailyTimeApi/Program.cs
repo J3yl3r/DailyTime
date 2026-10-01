@@ -1,4 +1,4 @@
-using dailyTimeApi.Data;
+﻿using dailyTimeApi.Data;
 using dailyTimeApi.Extensions;
 using dailyTimeApi.Models.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -51,7 +51,11 @@ if (app.Environment.IsDevelopment())
 var disableHttpsRedirect = app.Configuration.GetValue("DisableHttpsRedirection", false);
 if (!disableHttpsRedirect)
 {
-    app.UseHttpsRedirection();
+    // El callback de Google llega por http a loopback (es el redirect que Google admite sin
+    // certificado): redirigirlo a https sacaría al navegador al certificado de desarrollo.
+    app.UseWhen(
+        context => !context.Request.Path.StartsWithSegments("/api/google-calendar/callback"),
+        branch => branch.UseHttpsRedirection());
 }
 
 app.UseAuthorization();

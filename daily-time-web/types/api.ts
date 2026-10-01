@@ -106,6 +106,12 @@ export type TaskItem = {
   company: CompanySummary | null;
   createdAt: string;
   updatedAt: string;
+  /** Evento espejo en Google Calendar, si está sincronizado. */
+  googleEventId: string | null;
+  /** local | google — dónde nació el elemento. */
+  syncSource: string | null;
+  /** Color del evento en Google, en hexadecimal; solo en lo que viene de allí. */
+  googleColor: string | null;
 };
 
 export type Note = {
@@ -130,6 +136,12 @@ export type Note = {
   company: CompanySummary | null;
   createdAt: string;
   updatedAt: string;
+  /** Evento espejo en Google Calendar, si está sincronizado. */
+  googleEventId: string | null;
+  /** local | google — dónde nació el elemento. */
+  syncSource: string | null;
+  /** Color del evento en Google, en hexadecimal; solo en lo que viene de allí. */
+  googleColor: string | null;
 };
 
 export type TimeEntry = {
@@ -359,6 +371,11 @@ export type OfferAiStatus = {
   resetsAt: string;
 };
 
+export type OfferAiQueueResult = {
+  queued: number;
+  status: OfferAiStatus;
+};
+
 export type PriorityTier = "A" | "B" | "C";
 
 export type ScoreFactor = {
@@ -537,4 +554,43 @@ export type CareerProfileInput = {
     body: string;
     isActive: boolean;
   }[];
+};
+
+export type GoogleCalendarStatus = {
+  /** Hay credenciales de Google en user secrets. */
+  configured: boolean;
+  connected: boolean;
+  email: string | null;
+  calendarId: string | null;
+  timeZoneId: string;
+  syncEnabled: boolean;
+  syncTimedTasks: boolean;
+  syncAllDayTasks: boolean;
+  syncTimedNotes: boolean;
+  pastDays: number;
+  futureDays: number;
+  lastSyncAt: string | null;
+  lastSyncStatus: "running" | "ok" | "error" | null;
+  lastSyncMessage: string | null;
+  lastPushedCount: number;
+  lastPulledCount: number;
+  connectedAt: string | null;
+  isRunning: boolean;
+  syncIntervalMinutes: number;
+  /** URI que debe estar autorizada en Google Cloud. */
+  redirectUri: string;
+};
+
+export type GoogleCalendarListItem = {
+  id: string;
+  name: string;
+  timeZoneId: string | null;
+  isPrimary: boolean;
+};
+
+export type GoogleSyncRun = {
+  pushed: number;
+  pulled: number;
+  deleted: number;
+  message: string | null;
 };

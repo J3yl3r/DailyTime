@@ -61,3 +61,7 @@ docker-compose.override.yml
 
 # CVs / PII personal (no subir al repo)
 documentos/
+
+# Claude Code (local, no subir)
+.claude/settings.local.json
+.claude/worktrees/

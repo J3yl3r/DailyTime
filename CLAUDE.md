@@ -73,6 +73,7 @@ Contraseña SQL por defecto: `DailyTime_Str0ng!` (configurable vía `.env` en la
 
 ### Base de datos
 Scripts en `scripts/`: `wipe-database.sql` (vacía tablas), `seed-minimal.sql` (estados/categorías base), `migrate-career-profile.sql`, `portal-configs/` (config de portales de scraping).
+La API usa `EnsureCreated`, que **no** actualiza una base ya creada: al añadir columnas hay que aplicar el script correspondiente con `./scripts/apply-migration.ps1 -Script <archivo>.sql`.
 
 ## Arquitectura de `dailyTimeApi`
 
@@ -84,9 +85,18 @@ Dominios principales expuestos por los controllers:
 - **Carrera laboral**: `CareerProfile`, `CareerCompanies/Positions/Locations/Fields/Technologies`, `CareerApplicationStatuses`, `WorkExperiences`, `JobApplications`, `FitScore` (match candidato-oferta).
 - **Scraping de empleo**: `JobPortals`, `JobOffers`, `Companies`, `People` — alimentados por `dailyTimeWorker`.
 - **Priorización de ofertas**: `Services/Triage/OfferScorer` (función pura) puntúa 0–100 (tier A/B/C) y decide descartes con las reglas de `OfferTriageConfig` y el perfil de carrera. Se aplica en el upsert del worker y con `api/job-offers/triage/*` (vista previa, guardar y recalcular). Las reglas nunca cambian un estado con `StatusSource = user`.
+- **Calendario de Google**: `Services/Google` sincroniza en los dos sentidos tareas y notas con
+  el calendario de una cuenta conectada (OAuth con redirect de loopback). Cada pasada propaga
+  borrados, trae cambios remotos y empuja los locales, dentro de una ventana de días; en un
+  conflicto gana el cambio más reciente. Corre en `GoogleCalendarSyncBackgroundService` cada
+  pocos minutos y al instante tras cada guardado. Las credenciales van en user secrets
+  (`Google:ClientId`, `Google:ClientSecret`). Detalle y puesta en marcha en
+  [GOOGLE-CALENDAR.md](GOOGLE-CALENDAR.md).
 - **Análisis con IA**: `Services/Ai` analiza con Gemini (`generateContent`, capa gratuita) todas las ofertas activas sin análisis, las que entraron más recientemente primero. Lo dispara `OfferAiBackgroundService` tras cada upsert o recálculo, sin sondeo y sin tope propio: el único límite es la cuota de Google (ante un 429 se pausa y sigue sola al renovarse). El resultado (`JobOffer.AiAnalysis`) ajusta el puntaje entre +10 y −20; nunca descarta ni cambia estados. Al modelo no se le envían datos personales del perfil. La clave va en user secrets (`dotnet user-secrets set "Gemini:ApiKey" "..." --project dailyTimeApi`), nunca en appsettings.
 
 Config vía `IConfiguration`, no hardcodeada: `ConnectionStrings:DefaultConnection`, `Cors:Origins`, `Database:EnsureCreated`, `Database:SeedMinimal`, `DisableHttpsRedirection`. En Docker estos se pasan como variables de entorno (`Database__EnsureCreated`, etc.); en local van en `appsettings.Development.json`. Ese archivo **sí está versionado**: los secretos, como `Gemini:ApiKey`, van en user secrets.
+
+**User secrets: nunca los escribas desde la app de escritorio de Claude.** Es un paquete MSIX y Windows redirige lo que sus procesos escriben en `%APPDATA%` a `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\`. Desde Claude la clave parece guardada y funciona, pero los servicios que arranca la bandeja al iniciar sesión leen el `%APPDATA%` real, no la ven y arrancan sin ella, sin dar ningún error (`AddUserSecrets` es opcional). Por eso `dotnet user-secrets set` se ejecuta **siempre en una terminal normal de Windows**; si Claude lo necesita, le pide al usuario que lo haga. Por la misma razón, reiniciar la API desde Claude no sirve para probar nada que dependa de `%APPDATA%`: lo que se lanza desde aquí hereda esa redirección. Comprobación: `curl -sk https://localhost:5110/api/job-offers/ai/status` → `"configured": true`.
 
 ## Arquitectura de `dailyTimeWorker`
 

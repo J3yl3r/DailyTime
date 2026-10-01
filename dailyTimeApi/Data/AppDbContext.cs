@@ -42,6 +42,8 @@ public class AppDbContext : DbContext
     public DbSet<CareerProfileEducation> CareerProfileEducations => Set<CareerProfileEducation>();
     public DbSet<CareerProfileCertification> CareerProfileCertifications => Set<CareerProfileCertification>();
     public DbSet<CareerCoverLetter> CareerCoverLetters => Set<CareerCoverLetter>();
+    public DbSet<GoogleCalendarAccount> GoogleCalendarAccounts => Set<GoogleCalendarAccount>();
+    public DbSet<GoogleSyncDeletion> GoogleSyncDeletions => Set<GoogleSyncDeletion>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {

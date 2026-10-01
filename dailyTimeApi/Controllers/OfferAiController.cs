@@ -3,6 +3,7 @@ using dailyTimeApi.Exceptions;
 using dailyTimeApi.Models.Response;
 using dailyTimeApi.Services.Ai;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace dailyTimeApi.Controllers;
 
@@ -33,6 +34,26 @@ public class OfferAiController : ControllerBase
             _service.RequestProcessing();
             return Ok(ApiResponse<OfferAiStatusResponse>.Ok(
                 await _service.GetStatusAsync(cancellationToken), "Análisis de pendientes solicitado."));
+        }
+        catch (Exception ex) { return HandleError(ex); }
+    }
+
+    /// <summary>
+    /// Pone en cola las ofertas activas capturadas ese día (mismo criterio que el filtro de fecha de captura)
+    /// sin análisis o cuyo análisis falló; corre en segundo plano.
+    /// </summary>
+    [HttpPost("analyze-day")]
+    public async Task<ActionResult<ApiResponse<OfferAiQueueResponse>>> AnalyzeDay(
+        [FromQuery, BindRequired] DateOnly date, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var queued = await _service.QueueCapturedOnAsync(date, cancellationToken);
+            return Ok(ApiResponse<OfferAiQueueResponse>.Ok(new OfferAiQueueResponse
+            {
+                Queued = queued,
+                Status = await _service.GetStatusAsync(cancellationToken)
+            }));
         }
         catch (Exception ex) { return HandleError(ex); }
     }

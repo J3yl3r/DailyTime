@@ -59,6 +59,17 @@ namespace dailyTimeApi.Data.Configurations
             builder.HasIndex(x => new { x.WorkDate, x.SortOrder });
             builder.HasIndex(x => new { x.WorkDate, x.StatusId });
             builder.HasIndex(x => new { x.WorkDate, x.StartTime });
+
+            // Correlación con Google Calendar (evento espejo del elemento).
+            builder.Property(x => x.GoogleEventId).HasMaxLength(300);
+            builder.Property(x => x.GoogleEtag).HasMaxLength(100);
+            builder.Property(x => x.GoogleSyncedAt).HasPrecision(3);
+            builder.Property(x => x.GoogleUpdatedAt).HasPrecision(3);
+            builder.Property(x => x.SyncSource).HasMaxLength(20);
+            builder.Property(x => x.GoogleColor).HasMaxLength(9);
+            builder.HasIndex(x => x.GoogleEventId)
+                .IsUnique()
+                .HasFilter("[GoogleEventId] IS NOT NULL");
         }
     }
 }
