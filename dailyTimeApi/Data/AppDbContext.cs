@@ -1,4 +1,5 @@
-﻿using dailyTimeApi.Models.Entities;
+﻿using dailyTimeApi.Data.Converters;
+using dailyTimeApi.Models.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace dailyTimeApi.Data;
@@ -41,6 +42,13 @@ public class AppDbContext : DbContext
     public DbSet<CareerProfileEducation> CareerProfileEducations => Set<CareerProfileEducation>();
     public DbSet<CareerProfileCertification> CareerProfileCertifications => Set<CareerProfileCertification>();
     public DbSet<CareerCoverLetter> CareerCoverLetters => Set<CareerCoverLetter>();
+
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        // Todas las columnas DateTime son instantes UTC (DateTime.UtcNow / SYSUTCDATETIME()).
+        // Las fechas "de día" del calendario son DateOnly/TimeOnly y no pasan por este conversor.
+        configurationBuilder.Properties<DateTime>().HaveConversion<UtcDateTimeConverter>();
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
